@@ -1,0 +1,331 @@
+================================================================================
+SCHEMA.ORG STRUCTURED DATA AUDIT REPORT
+Site: https://www.fijiitsolutions.com
+Date: 2026-03-05
+================================================================================
+
+NOTE: The live site is behind Cloudflare challenge protection, so direct HTML
+extraction was not possible. This audit is based on the known existing schema
+blocks (Organization, WebPage, BreadcrumbList, ImageObject) and the business
+profile provided.
+
+================================================================================
+SECTION 1: EXISTING SCHEMA VALIDATION
+================================================================================
+
+--- Block 1: Organization ---
+Status:     NEEDS IMPROVEMENT
+Severity:   CRITICAL
+
+Known properties: name, logo, contactPoint, sameAs (social profiles)
+
+Issues found:
+  [CRITICAL] @type "Organization" is too generic for a local service business.
+     Should be "ProfessionalService" (a subtype of LocalBusiness).
+     LocalBusiness/ProfessionalService enables Google Local Pack results,
+     knowledge panel, and Maps integration. Organization alone does not.
+
+  [HIGH] Verify @context uses "https://schema.org" (not "http://schema.org").
+     Google accepts both but https is the canonical form.
+
+  [MEDIUM] Verify logo property uses an absolute URL.
+
+  [MEDIUM] Missing recommended properties:
+     - address (PostalAddress)
+     - geo (GeoCoordinates)
+     - areaServed
+     - openingHoursSpecification
+     - priceRange
+     - telephone (top-level, not just in contactPoint)
+     - email
+     - description
+     - hasOfferCatalog
+
+  [LOW] Verify sameAs URLs are all valid and currently active.
+
+--- Block 2: WebPage ---
+Status:     ACCEPTABLE (minor improvements)
+Severity:   MEDIUM
+
+Known properties: datePublished, dateModified
+
+Issues found:
+  [MEDIUM] Verify dates are ISO 8601 format (e.g., "2025-01-15").
+
+  [MEDIUM] Missing recommended properties:
+     - name (page title)
+     - description (page meta description)
+     - url (canonical URL)
+     - isPartOf (reference to WebSite schema)
+     - breadcrumb (reference to BreadcrumbList)
+     - speakable (for Google Assistant eligibility)
+
+  [LOW] Should include @id for cross-referencing with other schema blocks.
+
+--- Block 3: BreadcrumbList ---
+Status:     LIKELY OK (verify details)
+Severity:   LOW
+
+Issues found:
+  [LOW] Verify each ListItem has: position (integer), name (string), item (URL).
+  [LOW] Verify "item" values are absolute URLs.
+  [LOW] Verify position values are sequential starting at 1.
+
+--- Block 4: ImageObject ---
+Status:     ACCEPTABLE (minor improvements)
+Severity:   LOW
+
+Issues found:
+  [LOW] Verify contentUrl or url is an absolute URL.
+  [LOW] Should include width, height, and caption for completeness.
+
+================================================================================
+SECTION 2: MISSING SCHEMA OPPORTUNITIES
+================================================================================
+
+--- Finding 1: ProfessionalService (replaces Organization) ---
+Priority:   CRITICAL
+Impact:     Local Pack, Knowledge Panel, Maps integration
+Action:     Replace existing Organization with ProfessionalService
+
+  The current Organization schema does not qualify the site for local business
+  rich results. ProfessionalService (a subtype of LocalBusiness > Organization)
+  tells Google this is a local service provider with a physical location and
+  service area, enabling:
+    - Google Local Pack (3-pack in search results)
+    - Google Maps Knowledge Panel
+    - "Near me" search visibility
+    - Service area display
+
+  Required properties for Local Pack eligibility:
+    - name
+    - address (PostalAddress with street, city, state, zip, country)
+    - telephone
+    - geo (latitude/longitude)
+    - url
+
+  Strongly recommended:
+    - areaServed (list of cities served)
+    - openingHoursSpecification
+    - priceRange
+    - description
+    - hasOfferCatalog (links to Service schema)
+    - aggregateRating
+
+  See: fijiit-recommended-schema.jsonld, Block 1
+
+--- Finding 2: Service Schema (one per service) ---
+Priority:   HIGH
+Impact:     Service-level indexing, enhanced snippets, entity relationships
+Action:     Add Service schema to each service page
+
+  The site offers 10 distinct services but has no Service schema. Each service
+  page should have its own Service block with:
+    - name
+    - description
+    - serviceType
+    - provider (@id reference to ProfessionalService)
+    - areaServed
+    - url
+
+  This creates a structured service catalog that Google can use to understand
+  exactly what the business offers and match it to relevant queries.
+
+  See: fijiit-recommended-schema.jsonld, Blocks 3-12
+
+--- Finding 3: WebSite with SearchAction ---
+Priority:   HIGH
+Impact:     Sitelinks search box in Google results
+Action:     Add WebSite schema with SearchAction to homepage
+
+  If the site has a search function, adding WebSite schema with a SearchAction
+  enables the sitelinks search box directly in Google search results.
+
+  See: fijiit-recommended-schema.jsonld, Block 2
+
+--- Finding 4: AggregateRating ---
+Priority:   HIGH
+Impact:     Star ratings in search results
+Action:     Add aggregateRating inside ProfessionalService schema
+
+  If the business has reviews (Google, Yelp, etc.), adding AggregateRating
+  can display star ratings in search results. IMPORTANT: The rating data must
+  reflect genuine, verifiable reviews. Do not fabricate ratings.
+
+  Example (add inside ProfessionalService block):
+
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "reviewCount": "47",
+      "bestRating": "5",
+      "worstRating": "1"
+    }
+
+  NOTE: Replace values with actual review data. Google may issue a manual
+  action for fake or misleading review markup.
+
+--- Finding 5: FAQPage ---
+Priority:   DO NOT IMPLEMENT (unless authority site)
+Impact:     N/A for this site
+Action:     Skip
+
+  IMPORTANT: As of August 2023, Google restricts FAQ rich results to
+  government and healthcare authority websites only. Since Fiji IT Solutions
+  is neither, implementing FAQPage schema will NOT produce any rich results
+  and is unnecessary. The site may have an FAQ section for user experience,
+  but schema markup for it will be ignored by Google.
+
+--- Finding 6: HowTo ---
+Priority:   DO NOT IMPLEMENT (deprecated)
+Impact:     N/A
+Action:     Skip
+
+  IMPORTANT: Google removed HowTo rich results in September 2023. Adding
+  HowTo schema will not produce any rich results. Do not implement.
+
+--- Finding 7: Review (individual) ---
+Priority:   MEDIUM
+Impact:     Review snippets, trust signals
+Action:     Add Review schema for displayed testimonials
+
+  If the site displays customer testimonials or reviews, each one should be
+  marked up with Review schema nested inside or referencing the
+  ProfessionalService. Each Review needs:
+    - author (Person with name)
+    - reviewRating (Rating with ratingValue)
+    - datePublished
+    - reviewBody
+
+  Example:
+
+    "review": [
+      {
+        "@type": "Review",
+        "author": {
+          "@type": "Person",
+          "name": "John D."
+        },
+        "datePublished": "2025-06-15",
+        "reviewRating": {
+          "@type": "Rating",
+          "ratingValue": "5",
+          "bestRating": "5"
+        },
+        "reviewBody": "Excellent IT support. They resolved our network issues within hours."
+      }
+    ]
+
+  NOTE: Only mark up reviews that are actually displayed on the page.
+
+--- Finding 8: ServiceArea with GeoCircle ---
+Priority:   MEDIUM
+Impact:     Improved local search matching
+Action:     Alternative to city-by-city areaServed
+
+  As an alternative or supplement to listing individual cities in areaServed,
+  a GeoCircle can define the service radius:
+
+    "areaServed": {
+      "@type": "GeoCircle",
+      "geoMidpoint": {
+        "@type": "GeoCoordinates",
+        "latitude": 37.5485,
+        "longitude": -121.9886
+      },
+      "geoRadius": "50000"
+    }
+
+  The city-by-city approach (used in Block 1) is generally more precise and
+  preferred because it explicitly names the cities the business serves.
+
+--- Finding 9: ContactPoint Enhancement ---
+Priority:   MEDIUM
+Impact:     Knowledge panel contact information
+Action:     Add multiple ContactPoint entries
+
+  The existing contactPoint should be expanded to differentiate between
+  contact types (customer service vs. technical support vs. sales). Each
+  should include:
+    - telephone
+    - contactType
+    - email
+    - availableLanguage
+    - areaServed
+    - contactOption (if applicable, e.g., "TollFree")
+
+  See: fijiit-recommended-schema.jsonld, Block 1 contactPoint array
+
+--- Finding 10: SameAs for Entity Disambiguation ---
+Priority:   LOW
+Impact:     Knowledge Graph entity recognition
+Action:     Ensure all social/directory profiles are in sameAs
+
+  The sameAs array should include all official profiles:
+    - Facebook page
+    - LinkedIn company page
+    - Twitter/X profile
+    - Yelp business page
+    - Google Business Profile
+    - BBB listing
+    - Industry directory listings
+
+================================================================================
+SECTION 3: PRIORITY SUMMARY
+================================================================================
+
+CRITICAL (implement immediately):
+  1. Replace Organization with ProfessionalService (LocalBusiness subtype)
+     - Add address, geo, telephone, areaServed, openingHours
+
+HIGH (implement soon):
+  2. Add Service schema to each of the 10 service pages
+  3. Add WebSite schema with SearchAction
+  4. Add AggregateRating (if genuine review data available)
+
+MEDIUM (implement when possible):
+  5. Add Review schema for displayed testimonials
+  6. Enhance ContactPoint with multiple contact types
+  7. Add ServiceArea/GeoCircle as supplement
+  8. Improve WebPage schema with missing properties
+
+LOW (nice to have):
+  9. Complete sameAs with all directory profiles
+  10. Add width/height/caption to ImageObject
+
+DO NOT IMPLEMENT:
+  - FAQPage (restricted to government/healthcare since Aug 2023)
+  - HowTo (deprecated since Sep 2023)
+
+================================================================================
+SECTION 4: IMPLEMENTATION NOTES
+================================================================================
+
+1. All recommended JSON-LD blocks are in: fijiit-recommended-schema.jsonld
+   - Place each block in a <script type="application/ld+json"> tag
+   - ProfessionalService block goes on EVERY page (or at minimum the homepage)
+   - Service blocks go on their respective service pages
+   - BreadcrumbList blocks are page-specific
+
+2. Use @id references to link schema blocks together:
+   - ProfessionalService: @id = "https://www.fijiitsolutions.com/#organization"
+   - WebSite: @id = "https://www.fijiitsolutions.com/#website"
+   - Each Service references provider via @id
+
+3. URLs marked with "_REPLACE_" or "_comment" must be updated with actual values
+   before deployment.
+
+4. After implementation, validate with:
+   - Google Rich Results Test: https://search.google.com/test/rich-results
+   - Schema.org Validator: https://validator.schema.org/
+   - Google Search Console (monitor for errors over time)
+
+5. The openingHoursSpecification in Block 1 uses placeholder hours (Mon-Fri
+   9:00-18:00). Update with actual business hours.
+
+6. Geo coordinates (37.5485, -121.9886) are approximate for Fremont, CA 94539.
+   Verify and adjust to the exact business location.
+
+================================================================================
+END OF REPORT
+================================================================================

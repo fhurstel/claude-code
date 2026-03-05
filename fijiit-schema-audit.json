@@ -1,0 +1,60 @@
+{
+  "audit_metadata": {
+    "site": "https://www.fijiitsolutions.com",
+    "date": "2026-03-05",
+    "note": "Live fetch blocked by Cloudflare; analysis based on known existing schema and business profile"
+  },
+  "existing_schema_validation": [
+    {
+      "block": "Organization",
+      "known_properties": ["name", "logo", "contactPoint", "sameAs (social profiles)"],
+      "validation": {
+        "context_check": "VERIFY: must be https://schema.org (not http)",
+        "type_check": "PASS - Organization is valid and supported",
+        "issues": [
+          "Organization is too generic for a local business; should use LocalBusiness or ProfessionalService subtype",
+          "Verify logo is an absolute URL, not relative",
+          "Verify contactPoint uses ContactPoint type with telephone and contactType properties"
+        ],
+        "severity": "High"
+      }
+    },
+    {
+      "block": "WebPage",
+      "known_properties": ["datePublished", "dateModified"],
+      "validation": {
+        "type_check": "PASS - WebPage is valid",
+        "issues": [
+          "Verify dates use ISO 8601 format (YYYY-MM-DD)",
+          "Should include name, description, and url properties",
+          "Should include isPartOf referencing WebSite schema"
+        ],
+        "severity": "Medium"
+      }
+    },
+    {
+      "block": "BreadcrumbList",
+      "known_properties": ["itemListElement"],
+      "validation": {
+        "type_check": "PASS - BreadcrumbList is supported for rich results",
+        "issues": [
+          "Verify each ListItem has position (integer), name, and item (absolute URL)",
+          "Verify position values are sequential starting at 1"
+        ],
+        "severity": "Low"
+      }
+    },
+    {
+      "block": "ImageObject",
+      "known_properties": [],
+      "validation": {
+        "type_check": "PASS - ImageObject is valid",
+        "issues": [
+          "Verify contentUrl or url is an absolute URL",
+          "Should include width, height, and caption properties"
+        ],
+        "severity": "Low"
+      }
+    }
+  ]
+}

@@ -1,0 +1,350 @@
+[
+  {
+    "_comment": "BLOCK 1: LocalBusiness / ProfessionalService — CRITICAL priority. Replaces generic Organization schema. Enables local pack and knowledge panel rich results.",
+    "@context": "https://schema.org",
+    "@type": "ProfessionalService",
+    "@id": "https://www.fijiitsolutions.com/#organization",
+    "name": "Fiji IT Solutions",
+    "url": "https://www.fijiitsolutions.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://www.fijiitsolutions.com/logo.png",
+      "_comment": "REPLACE with actual logo URL"
+    },
+    "image": "https://www.fijiitsolutions.com/logo.png",
+    "description": "Fiji IT Solutions provides managed IT services, computer repair, data recovery, VoIP, security cameras, structured cabling, and web development for businesses in the San Francisco Bay Area.",
+    "telephone": "+1-650-242-5306",
+    "email": "info@fijiit.com",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Whitetail Ct",
+      "addressLocality": "Fremont",
+      "addressRegion": "CA",
+      "postalCode": "94539",
+      "addressCountry": "US"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": 37.5485,
+      "longitude": -121.9886
+    },
+    "areaServed": [
+      {
+        "@type": "City",
+        "name": "San Mateo",
+        "sameAs": "https://en.wikipedia.org/wiki/San_Mateo,_California"
+      },
+      {
+        "@type": "City",
+        "name": "Fremont",
+        "sameAs": "https://en.wikipedia.org/wiki/Fremont,_California"
+      },
+      {
+        "@type": "City",
+        "name": "Hayward",
+        "sameAs": "https://en.wikipedia.org/wiki/Hayward,_California"
+      },
+      {
+        "@type": "City",
+        "name": "Belmont",
+        "sameAs": "https://en.wikipedia.org/wiki/Belmont,_California"
+      },
+      {
+        "@type": "City",
+        "name": "Redwood City",
+        "sameAs": "https://en.wikipedia.org/wiki/Redwood_City,_California"
+      },
+      {
+        "@type": "City",
+        "name": "Sunnyvale",
+        "sameAs": "https://en.wikipedia.org/wiki/Sunnyvale,_California"
+      },
+      {
+        "@type": "City",
+        "name": "Palo Alto",
+        "sameAs": "https://en.wikipedia.org/wiki/Palo_Alto,_California"
+      },
+      {
+        "@type": "City",
+        "name": "Stanford",
+        "sameAs": "https://en.wikipedia.org/wiki/Stanford,_California"
+      },
+      {
+        "@type": "City",
+        "name": "Santa Clara",
+        "sameAs": "https://en.wikipedia.org/wiki/Santa_Clara,_California"
+      },
+      {
+        "@type": "City",
+        "name": "San Jose",
+        "sameAs": "https://en.wikipedia.org/wiki/San_Jose,_California"
+      },
+      {
+        "@type": "City",
+        "name": "Menlo Park",
+        "sameAs": "https://en.wikipedia.org/wiki/Menlo_Park,_California"
+      }
+    ],
+    "openingHoursSpecification": [
+      {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        "opens": "09:00",
+        "closes": "18:00",
+        "_comment": "REPLACE with actual business hours"
+      }
+    ],
+    "priceRange": "$$",
+    "sameAs": [
+      "_REPLACE_WITH_FACEBOOK_URL",
+      "_REPLACE_WITH_LINKEDIN_URL",
+      "_REPLACE_WITH_TWITTER_URL",
+      "_REPLACE_WITH_YELP_URL"
+    ],
+    "contactPoint": [
+      {
+        "@type": "ContactPoint",
+        "telephone": "+1-650-242-5306",
+        "contactType": "customer service",
+        "email": "info@fijiit.com",
+        "availableLanguage": ["English"],
+        "areaServed": "US"
+      },
+      {
+        "@type": "ContactPoint",
+        "telephone": "+1-650-242-5306",
+        "contactType": "technical support",
+        "email": "info@fijiit.com",
+        "availableLanguage": ["English"],
+        "areaServed": "US"
+      }
+    ],
+    "hasOfferCatalog": {
+      "@type": "OfferCatalog",
+      "name": "IT Services",
+      "itemListElement": [
+        {
+          "@type": "OfferCatalog",
+          "name": "Managed IT Services",
+          "itemListElement": [
+            {
+              "@type": "Offer",
+              "itemOffered": {
+                "@type": "Service",
+                "name": "Managed IT Services"
+              }
+            }
+          ]
+        },
+        {
+          "@type": "OfferCatalog",
+          "name": "Computer Repair",
+          "itemListElement": [
+            {
+              "@type": "Offer",
+              "itemOffered": {
+                "@type": "Service",
+                "name": "Computer Repair"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+
+  {
+    "_comment": "BLOCK 2: WebSite with SearchAction — HIGH priority. Enables sitelinks search box in Google results.",
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": "https://www.fijiitsolutions.com/#website",
+    "name": "Fiji IT Solutions",
+    "url": "https://www.fijiitsolutions.com",
+    "publisher": {
+      "@id": "https://www.fijiitsolutions.com/#organization"
+    },
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": "https://www.fijiitsolutions.com/?s={search_term_string}"
+      },
+      "query-input": "required name=search_term_string"
+    }
+  },
+
+  {
+    "_comment": "BLOCK 3: Service schema — Managed IT Services — HIGH priority. One block per major service page.",
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": "https://www.fijiitsolutions.com/managed-it-services/#service",
+    "name": "Managed IT Services",
+    "description": "Comprehensive managed IT services including network monitoring, help desk support, system administration, and proactive maintenance for Bay Area businesses.",
+    "provider": {
+      "@id": "https://www.fijiitsolutions.com/#organization"
+    },
+    "serviceType": "Managed IT Services",
+    "areaServed": {
+      "@type": "State",
+      "name": "California"
+    },
+    "url": "https://www.fijiitsolutions.com/managed-it-services/",
+    "category": "Information Technology"
+  },
+
+  {
+    "_comment": "BLOCK 4: Service schema — Computer Repair — HIGH priority.",
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": "https://www.fijiitsolutions.com/computer-repair/#service",
+    "name": "Computer Repair",
+    "description": "Professional computer repair services including hardware diagnostics, virus removal, OS reinstallation, and performance optimization.",
+    "provider": {
+      "@id": "https://www.fijiitsolutions.com/#organization"
+    },
+    "serviceType": "Computer Repair",
+    "areaServed": {
+      "@type": "State",
+      "name": "California"
+    },
+    "url": "https://www.fijiitsolutions.com/computer-repair/"
+  },
+
+  {
+    "_comment": "BLOCK 5: Service schema — Data Recovery — HIGH priority.",
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": "https://www.fijiitsolutions.com/data-recovery/#service",
+    "name": "Data Recovery",
+    "description": "Data recovery services for hard drives, SSDs, RAID arrays, and flash storage devices for businesses and individuals.",
+    "provider": {
+      "@id": "https://www.fijiitsolutions.com/#organization"
+    },
+    "serviceType": "Data Recovery",
+    "url": "https://www.fijiitsolutions.com/data-recovery/"
+  },
+
+  {
+    "_comment": "BLOCK 6: Service schema — Website Creation — HIGH priority.",
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": "https://www.fijiitsolutions.com/website-creation/#service",
+    "name": "Website Creation",
+    "description": "Custom website design and development services including responsive design, CMS setup, e-commerce, and SEO optimization.",
+    "provider": {
+      "@id": "https://www.fijiitsolutions.com/#organization"
+    },
+    "serviceType": "Web Development",
+    "url": "https://www.fijiitsolutions.com/website-creation/"
+  },
+
+  {
+    "_comment": "BLOCK 7: Service schema — Structured Cabling — MEDIUM priority.",
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": "https://www.fijiitsolutions.com/structured-cabling/#service",
+    "name": "Structured Cabling",
+    "description": "Professional structured cabling installation for Cat5e, Cat6, Cat6a, and fiber optic networks in commercial buildings.",
+    "provider": {
+      "@id": "https://www.fijiitsolutions.com/#organization"
+    },
+    "serviceType": "Structured Cabling",
+    "url": "https://www.fijiitsolutions.com/structured-cabling/"
+  },
+
+  {
+    "_comment": "BLOCK 8: Service schema — VoIP — MEDIUM priority.",
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": "https://www.fijiitsolutions.com/voip/#service",
+    "name": "VoIP Phone Systems",
+    "description": "Business VoIP phone system installation, configuration, and support including hosted PBX and SIP trunking.",
+    "provider": {
+      "@id": "https://www.fijiitsolutions.com/#organization"
+    },
+    "serviceType": "VoIP Services",
+    "url": "https://www.fijiitsolutions.com/voip/"
+  },
+
+  {
+    "_comment": "BLOCK 9: Service schema — Security Cameras — MEDIUM priority.",
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": "https://www.fijiitsolutions.com/security-cameras/#service",
+    "name": "Security Camera Installation",
+    "description": "Commercial and residential security camera system design, installation, and monitoring setup including IP cameras and NVR systems.",
+    "provider": {
+      "@id": "https://www.fijiitsolutions.com/#organization"
+    },
+    "serviceType": "Security Camera Installation",
+    "url": "https://www.fijiitsolutions.com/security-cameras/"
+  },
+
+  {
+    "_comment": "BLOCK 10: Service schema — Wi-Fi — MEDIUM priority.",
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": "https://www.fijiitsolutions.com/wifi/#service",
+    "name": "Wi-Fi Solutions",
+    "description": "Enterprise and business Wi-Fi network design, access point installation, and wireless network optimization.",
+    "provider": {
+      "@id": "https://www.fijiitsolutions.com/#organization"
+    },
+    "serviceType": "Wireless Networking",
+    "url": "https://www.fijiitsolutions.com/wifi/"
+  },
+
+  {
+    "_comment": "BLOCK 11: Service schema — Fiber Optic — MEDIUM priority.",
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": "https://www.fijiitsolutions.com/fiber-optic/#service",
+    "name": "Fiber Optic Installation",
+    "description": "Fiber optic cable installation, splicing, and testing for high-speed business network infrastructure.",
+    "provider": {
+      "@id": "https://www.fijiitsolutions.com/#organization"
+    },
+    "serviceType": "Fiber Optic Installation",
+    "url": "https://www.fijiitsolutions.com/fiber-optic/"
+  },
+
+  {
+    "_comment": "BLOCK 12: Service schema — Software Services — MEDIUM priority.",
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": "https://www.fijiitsolutions.com/software-services/#service",
+    "name": "Software Services",
+    "description": "Custom software development, software installation, licensing management, and enterprise software solutions.",
+    "provider": {
+      "@id": "https://www.fijiitsolutions.com/#organization"
+    },
+    "serviceType": "Software Services",
+    "url": "https://www.fijiitsolutions.com/software-services/"
+  },
+
+  {
+    "_comment": "BLOCK 13: BreadcrumbList — already exists, included here as reference template. LOW priority to fix.",
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://www.fijiitsolutions.com/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Services",
+        "item": "https://www.fijiitsolutions.com/services/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": "Managed IT Services",
+        "item": "https://www.fijiitsolutions.com/managed-it-services/"
+      }
+    ]
+  }
+]
