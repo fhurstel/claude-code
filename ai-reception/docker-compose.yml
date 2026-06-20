@@ -1,0 +1,22 @@
+services:
+  receptionist:
+    build: .
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  # Free, self-hosted LLM. Pull a model after first start:
+  #   docker compose exec ollama ollama pull llama3.1:8b
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
