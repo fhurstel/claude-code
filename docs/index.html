@@ -97,45 +97,64 @@ let isSpeaking = false;
 
 // ── Speech Recognition Setup ──
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let silenceTimer = null;
+let finalTranscript = '';
+
 if (SpeechRecognition) {
   recognition = new SpeechRecognition();
-  recognition.continuous = false;
+  recognition.continuous = true;
   recognition.interimResults = true;
   recognition.lang = 'en-US';
+  recognition.maxAlternatives = 1;
 
   recognition.onstart = () => {
     isRecording = true;
+    finalTranscript = '';
     micBtn.classList.add('recording');
     micBtn.textContent = '⏹';
-    statusText.textContent = 'Listening...';
+    statusText.textContent = '🔴 Listening — speak now...';
     listenFill.style.width = '100%';
     listenFill.style.background = '#dc2626';
+    inputEl.placeholder = 'Listening...';
   };
 
   recognition.onresult = (e) => {
+    clearTimeout(silenceTimer);
     let interim = '';
-    let final = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
+    finalTranscript = '';
+    for (let i = 0; i < e.results.length; i++) {
       if (e.results[i].isFinal) {
-        final += e.results[i][0].transcript;
+        finalTranscript += e.results[i][0].transcript;
       } else {
         interim += e.results[i][0].transcript;
       }
     }
-    inputEl.value = final || interim;
-    if (final) {
-      send();
+    inputEl.value = finalTranscript || interim;
+
+    if (finalTranscript) {
+      silenceTimer = setTimeout(() => {
+        recognition.stop();
+        inputEl.value = finalTranscript.trim();
+        if (inputEl.value) send();
+      }, 2000);
     }
   };
 
   recognition.onerror = (e) => {
-    if (e.error !== 'no-speech' && e.error !== 'aborted') {
+    clearTimeout(silenceTimer);
+    if (e.error === 'no-speech') {
+      statusText.textContent = 'No speech detected — tap mic again';
+    } else if (e.error !== 'aborted') {
       console.error('Speech error:', e.error);
     }
     stopMic();
   };
 
   recognition.onend = () => {
+    if (isRecording && !finalTranscript) {
+      try { recognition.start(); } catch(e) {}
+      return;
+    }
     stopMic();
   };
 } else {
@@ -148,73 +167,123 @@ if (SpeechRecognition) {
 const synth = window.speechSynthesis;
 let voices = [];
 
+function scoreVoice(v) {
+  let score = 0;
+  const name = v.name.toLowerCase();
+  if (/natural|neural|enhanced|premium|wavenet/i.test(name)) score += 50;
+  if (/google/i.test(name)) score += 30;
+  if (/microsoft.*online|microsoft.*natural/i.test(name)) score += 35;
+  if (/samantha|karen|fiona|moira|victoria|zira|jenny|aria|sara/i.test(name)) score += 20;
+  if (v.lang === 'en-US') score += 10;
+  else if (v.lang === 'en-GB' || v.lang === 'en-AU') score += 8;
+  if (v.localService === false) score += 15;
+  return score;
+}
+
 function loadVoices() {
   voices = synth.getVoices();
   voiceSelect.innerHTML = '';
   const english = voices.filter(v => v.lang.startsWith('en'));
-  const toShow = english.length > 0 ? english : voices.slice(0, 10);
-  toShow.forEach((v, i) => {
+  const sorted = (english.length > 0 ? english : voices.slice(0, 15))
+    .map((v, i) => ({ voice: v, origIdx: voices.indexOf(v), score: scoreVoice(v) }))
+    .sort((a, b) => b.score - a.score);
+
+  sorted.forEach((item, i) => {
     const opt = document.createElement('option');
     opt.value = i;
-    opt.dataset.voiceIndex = voices.indexOf(v);
-    const label = v.name.replace(/Microsoft |Google |Apple /g, '');
-    opt.textContent = label.length > 25 ? label.slice(0, 25) + '...' : label;
+    opt.dataset.voiceIndex = item.origIdx;
+    let label = item.voice.name.replace(/Microsoft |Google |Apple /g, '');
+    if (item.score >= 40) label += ' *';
+    opt.textContent = label.length > 30 ? label.slice(0, 30) + '...' : label;
     voiceSelect.appendChild(opt);
   });
-  // Try to pick a good female voice by default
-  const preferred = toShow.findIndex(v =>
-    /samantha|karen|zira|female|fiona|moira|victoria|susan/i.test(v.name)
-  );
-  if (preferred >= 0) voiceSelect.selectedIndex = preferred;
 }
 
 synth.onvoiceschanged = loadVoices;
+setTimeout(loadVoices, 100);
+setTimeout(loadVoices, 500);
 loadVoices();
 
 function speak(text) {
   if (!speakToggle.checked || !synth) return Promise.resolve();
   return new Promise(resolve => {
     synth.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = 1.05;
-    utter.pitch = 1.1;
-    const selectedOpt = voiceSelect.options[voiceSelect.selectedIndex];
-    if (selectedOpt && voices.length) {
-      utter.voice = voices[parseInt(selectedOpt.dataset.voiceIndex)];
-    }
+
+    const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
+    let idx = 0;
     isSpeaking = true;
     statusText.textContent = 'Speaking...';
-    utter.onend = () => {
-      isSpeaking = false;
-      statusText.textContent = 'Receptionist online';
-      resolve();
-      if (autoMicToggle.checked && !ended) {
-        setTimeout(() => toggleMic(), 400);
+
+    function speakNext() {
+      if (idx >= sentences.length) {
+        isSpeaking = false;
+        statusText.textContent = 'Receptionist online';
+        resolve();
+        if (autoMicToggle.checked && !ended) {
+          setTimeout(() => toggleMic(), 600);
+        }
+        return;
       }
-    };
-    utter.onerror = () => { isSpeaking = false; resolve(); };
-    synth.speak(utter);
+      const chunk = sentences[idx].trim();
+      idx++;
+      if (!chunk) { speakNext(); return; }
+
+      const utter = new SpeechSynthesisUtterance(chunk);
+      utter.rate = 0.92;
+      utter.pitch = 1.0;
+      utter.volume = 1.0;
+
+      const selectedOpt = voiceSelect.options[voiceSelect.selectedIndex];
+      if (selectedOpt && voices.length) {
+        utter.voice = voices[parseInt(selectedOpt.dataset.voiceIndex)];
+      }
+
+      utter.onend = () => {
+        setTimeout(speakNext, 150);
+      };
+      utter.onerror = () => {
+        isSpeaking = false;
+        resolve();
+      };
+      synth.speak(utter);
+    }
+    speakNext();
   });
 }
 
 // ── Mic Controls ──
 function toggleMic() {
   if (!recognition) return;
-  if (isSpeaking) { synth.cancel(); return; }
+  if (isSpeaking) { synth.cancel(); isSpeaking = false; return; }
   if (isRecording) {
-    recognition.stop();
+    clearTimeout(silenceTimer);
+    finalTranscript = inputEl.value.trim();
+    isRecording = false;
+    try { recognition.stop(); } catch(e) {}
+    if (finalTranscript) {
+      inputEl.value = finalTranscript;
+      send();
+    }
+    stopMic();
   } else {
     inputEl.value = '';
-    recognition.start();
+    finalTranscript = '';
+    try { recognition.start(); } catch(e) {
+      setTimeout(() => { try { recognition.start(); } catch(e2) {} }, 200);
+    }
   }
 }
 
 function stopMic() {
   isRecording = false;
+  clearTimeout(silenceTimer);
   micBtn.classList.remove('recording');
   micBtn.textContent = '🎤';
-  statusText.textContent = 'Receptionist online';
+  if (statusText.textContent.includes('Listen') || statusText.textContent.includes('🔴')) {
+    statusText.textContent = 'Receptionist online';
+  }
   listenFill.style.width = '0';
+  inputEl.placeholder = 'Type or tap the mic...';
 }
 
 inputEl.addEventListener('keypress', e => { if (e.key === 'Enter') send(); });
