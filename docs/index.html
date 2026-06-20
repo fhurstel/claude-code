@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fiji IT Solutions - AI Receptionist</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #f0f4f8; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 1rem; }
+  .chat-container { width: 100%; max-width: 520px; background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.12); overflow: hidden; margin-top: 2rem; }
+  .header { background: linear-gradient(135deg, #1e40af, #2563eb); color: white; padding: 1.2rem; text-align: center; }
+  .header h1 { font-size: 1.15rem; font-weight: 600; }
+  .header p { font-size: 0.8rem; opacity: 0.85; margin-top: 0.3rem; }
+  .messages { height: 480px; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; scroll-behavior: smooth; }
+  .msg { padding: 0.7rem 1rem; border-radius: 16px; max-width: 82%; word-wrap: break-word; line-height: 1.5; font-size: 0.95rem; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .msg.user { background: #2563eb; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+  .msg.bot { background: #f1f5f9; color: #1e293b; align-self: flex-start; border-bottom-left-radius: 4px; }
+  .msg.system { background: #fef3c7; color: #92400e; align-self: center; font-size: 0.82rem; border-radius: 8px; text-align: center; max-width: 95%; }
+  .msg.lead { background: #ecfdf5; color: #065f46; align-self: center; font-size: 0.8rem; border-radius: 8px; text-align: left; max-width: 95%; white-space: pre-wrap; font-family: monospace; }
+  .typing { align-self: flex-start; padding: 0.7rem 1.2rem; background: #f1f5f9; border-radius: 16px; border-bottom-left-radius: 4px; }
+  .typing span { display: inline-block; width: 8px; height: 8px; background: #94a3b8; border-radius: 50%; margin: 0 2px; animation: bounce 1.4s infinite; }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+  .input-area { display: flex; border-top: 1px solid #e2e8f0; }
+  .input-area input { flex: 1; padding: 1rem; border: none; outline: none; font-size: 1rem; background: white; }
+  .input-area input::placeholder { color: #94a3b8; }
+  .input-area button { padding: 1rem 1.5rem; background: #2563eb; color: white; border: none; cursor: pointer; font-size: 1rem; font-weight: 500; transition: background 0.2s; }
+  .input-area button:hover { background: #1d4ed8; }
+  .input-area button:disabled { background: #94a3b8; cursor: not-allowed; }
+  .actions { display: flex; gap: 0.5rem; padding: 0.6rem; justify-content: center; background: #f8fafc; }
+  .actions button { padding: 0.5rem 1.2rem; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; background: white; }
+  .actions button:hover { border-color: #2563eb; color: #2563eb; }
+  .actions .end-btn { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+  .actions .end-btn:hover { background: #dc2626; color: white; }
+  .actions .new-btn { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+  .actions .new-btn:hover { background: #16a34a; color: white; }
+  .status { text-align: center; padding: 0.4rem; font-size: 0.75rem; color: #64748b; background: #f8fafc; }
+  .status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; margin-right: 4px; vertical-align: middle; }
+</style>
+</head><body>
+
+<div class="chat-container">
+  <div class="header">
+    <h1>Fiji IT Solutions</h1>
+    <p>AI Receptionist - Live Demo</p>
+  </div>
+  <div class="status"><span class="dot"></span>Receptionist online</div>
+  <div class="messages" id="messages"></div>
+  <div class="input-area">
+    <input id="input" placeholder="Type a message..." autocomplete="off">
+    <button id="sendBtn" onclick="send()">Send</button>
+  </div>
+  <div class="actions">
+    <button class="end-btn" onclick="endCall()">End Call &amp; Extract Lead</button>
+    <button class="new-btn" onclick="newCall()">New Call</button>
+  </div>
+</div>
+
+<script>
+const SYSTEM_PROMPT = `You are the virtual receptionist for Fiji IT Solutions.
+Collect: 1) Name  2) Phone  3) Email  4) Requirement.
+Be warm, professional, one question at a time.`;
+
+let messages = [];
+let collected = { name: false, phone: false, email: false, requirement: false };
+let ended = false;
+
+const msgsEl = document.getElementById('messages');
+const inputEl = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+
+inputEl.addEventListener('keypress', e => { if (e.key === 'Enter') send(); });
+
+function addMsg(text, cls) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + cls;
+  d.textContent = text;
+  msgsEl.appendChild(d);
+  msgsEl.scrollTop = msgsEl.scrollHeight;
+  return d;
+}
+
+function showTyping() {
+  const d = document.createElement('div');
+  d.className = 'typing';
+  d.id = 'typing';
+  d.innerHTML = '<span></span><span></span><span></span>';
+  msgsEl.appendChild(d);
+  msgsEl.scrollTop = msgsEl.scrollHeight;
+}
+
+function hideTyping() {
+  const t = document.getElementById('typing');
+  if (t) t.remove();
+}
+
+function getReply(userMsg) {
+  const lower = userMsg.toLowerCase();
+  const userCount = messages.filter(m => m.role === 'user').length;
+
+  if (userCount === 1) {
+    return "Hello! Thank you for calling Fiji IT Solutions. I'm the virtual receptionist. How can I help you today?";
+  }
+
+  if (!collected.requirement && userMsg.length > 15) {
+    collected.requirement = true;
+    return "I understand, I'll make sure a technician follows up on that. Could I get your full name please?";
+  }
+
+  if (!collected.requirement && userMsg.length > 8) {
+    collected.requirement = true;
+    return "Got it, I've noted that down. May I have your full name please?";
+  }
+
+  if (!collected.name) {
+    const words = userMsg.trim().split(/\s+/);
+    if (words.length >= 2 || (words.length === 1 && words[0][0] === words[0][0].toUpperCase())) {
+      collected.name = true;
+      const name = words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      return `Thank you, ${name}! And what's the best phone number to reach you at?`;
+    }
+    return "Could I get your full name please?";
+  }
+
+  if (!collected.phone && /\d/.test(lower)) {
+    collected.phone = true;
+    const digits = userMsg.replace(/\D/g, '');
+    const formatted = digits.length >= 7 ? digits : userMsg;
+    return `Got it, ${formatted}. And could I get your email address?`;
+  }
+
+  if (!collected.phone) {
+    return "What's the best phone number to reach you at?";
+  }
+
+  if (!collected.email && /@/.test(lower)) {
+    collected.email = true;
+    const emailMatch = userMsg.match(/[\w.+-]+@[\w.-]+\.\w+/);
+    const email = emailMatch ? emailMatch[0].toLowerCase() : userMsg.toLowerCase().trim();
+    return `Let me confirm: ${email} — is that correct? I've got all your details. A technician will follow up with you shortly. Is there anything else I can help you with?`;
+  }
+
+  if (!collected.email) {
+    return "Could I get your email address please?";
+  }
+
+  if (all()) {
+    if (/no|nope|that'?s? (all|it)|nothing|goodbye|bye|thanks/i.test(lower)) {
+      ended = true;
+      return "Thank you for calling Fiji IT Solutions! We appreciate your time. A technician will be in touch shortly. Have a wonderful day!";
+    }
+    return "Is there anything else I can help you with today?";
+  }
+
+  return "Could you tell me a bit more about what you need help with?";
+}
+
+function all() { return collected.name && collected.phone && collected.email && collected.requirement; }
+
+function extractLead() {
+  const transcript = messages.filter(m => m.role !== 'system');
+  let lead = { first_name: '', last_name: '', phone: '', email: '', requirement: '', urgency: 'low' };
+
+  const allText = transcript.map(m => m.content).join('\n');
+
+  const emailMatch = allText.match(/[\w.+-]+@[\w.-]+\.\w+/);
+  if (emailMatch) lead.email = emailMatch[0].toLowerCase();
+
+  const phoneMatch = allText.match(/[\d][\d\s\-().]{5,}[\d]/);
+  if (phoneMatch) lead.phone = phoneMatch[0].replace(/\D/g, '');
+
+  const userMsgs = transcript.filter(m => m.role === 'user').map(m => m.content);
+
+  for (const msg of userMsgs) {
+    const words = msg.trim().split(/\s+/);
+    if (words.length >= 2 && words.length <= 4) {
+      const allCap = words.every(w => /^[A-Z]/.test(w));
+      if (allCap && !/@/.test(msg) && !/\d{3}/.test(msg)) {
+        lead.first_name = words[0];
+        lead.last_name = words.slice(1).join(' ');
+        break;
+      }
+    }
+  }
+
+  for (const msg of userMsgs) {
+    if (msg.length > 15 && !/@/.test(msg) && !/^\d/.test(msg.trim())) {
+      const words = msg.trim().split(/\s+/);
+      const allCap = words.every(w => /^[A-Z]/.test(w));
+      if (!allCap || words.length > 4) {
+        lead.requirement = msg.trim();
+        break;
+      }
+    }
+  }
+
+  if (/urgent|emergency|down|critical|asap|can'?t work/i.test(lead.requirement)) {
+    lead.urgency = 'high';
+  } else if (/slow|issue|problem|broken|error/i.test(lead.requirement)) {
+    lead.urgency = 'medium';
+  }
+
+  return lead;
+}
+
+async function send() {
+  const text = inputEl.value.trim();
+  if (!text || ended) return;
+  inputEl.value = '';
+  sendBtn.disabled = true;
+
+  messages.push({ role: 'user', content: text });
+  addMsg(text, 'user');
+
+  showTyping();
+  await new Promise(r => setTimeout(r, 600 + Math.random() * 800));
+  hideTyping();
+
+  const reply = getReply(text);
+  messages.push({ role: 'assistant', content: reply });
+  addMsg(reply, 'bot');
+  sendBtn.disabled = false;
+  inputEl.focus();
+}
+
+function endCall() {
+  if (messages.length < 2) return;
+  addMsg('--- Call ended, extracting lead... ---', 'system');
+  const lead = extractLead();
+  const summary =
+`EXTRACTED LEAD:
+  Name:        ${lead.first_name} ${lead.last_name}
+  Phone:       ${lead.phone || '(not provided)'}
+  Email:       ${lead.email || '(not provided)'}
+  Requirement: ${lead.requirement || '(not provided)'}
+  Urgency:     ${lead.urgency}`;
+
+  const d = document.createElement('div');
+  d.className = 'msg lead';
+  d.textContent = summary;
+  msgsEl.appendChild(d);
+  msgsEl.scrollTop = msgsEl.scrollHeight;
+
+  const missing = [];
+  if (!lead.first_name) missing.push('name');
+  if (!lead.phone) missing.push('phone');
+  if (!lead.email) missing.push('email');
+  if (!lead.requirement) missing.push('requirement');
+
+  if (missing.length === 0) {
+    addMsg('All fields captured! This lead would be pushed to the CRM.', 'system');
+  } else {
+    addMsg('Missing: ' + missing.join(', ') + '. In production the receptionist would keep asking.', 'system');
+  }
+  ended = true;
+}
+
+function newCall() {
+  messages = [];
+  collected = { name: false, phone: false, email: false, requirement: false };
+  ended = false;
+  msgsEl.innerHTML = '';
+  addMsg('New call started. Type a message to begin.', 'system');
+  inputEl.focus();
+}
+
+// Auto-greeting on load
+addMsg('Welcome! This is a live demo of the Fiji IT Solutions AI Receptionist. Type a message to start a simulated call.', 'system');
+inputEl.focus();
+</script>
+</body></html>
