@@ -10,7 +10,7 @@
   .header { background: linear-gradient(135deg, #1e40af, #2563eb); color: white; padding: 1.2rem; text-align: center; }
   .header h1 { font-size: 1.15rem; font-weight: 600; }
   .header p { font-size: 0.8rem; opacity: 0.85; margin-top: 0.3rem; }
-  .messages { height: 480px; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; scroll-behavior: smooth; }
+  .messages { height: 420px; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; scroll-behavior: smooth; }
   .msg { padding: 0.7rem 1rem; border-radius: 16px; max-width: 82%; word-wrap: break-word; line-height: 1.5; font-size: 0.95rem; animation: fadeIn 0.3s ease; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   .msg.user { background: #2563eb; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
@@ -25,9 +25,19 @@
   .input-area { display: flex; border-top: 1px solid #e2e8f0; }
   .input-area input { flex: 1; padding: 1rem; border: none; outline: none; font-size: 1rem; background: white; }
   .input-area input::placeholder { color: #94a3b8; }
-  .input-area button { padding: 1rem 1.5rem; background: #2563eb; color: white; border: none; cursor: pointer; font-size: 1rem; font-weight: 500; transition: background 0.2s; }
+  .input-area button { padding: 1rem 1.2rem; background: #2563eb; color: white; border: none; cursor: pointer; font-size: 1rem; font-weight: 500; transition: background 0.2s; }
   .input-area button:hover { background: #1d4ed8; }
   .input-area button:disabled { background: #94a3b8; cursor: not-allowed; }
+  .mic-btn { background: #f1f5f9 !important; color: #475569 !important; font-size: 1.3rem !important; padding: 0.8rem 1rem !important; border-left: 1px solid #e2e8f0 !important; }
+  .mic-btn:hover { background: #e2e8f0 !important; }
+  .mic-btn.recording { background: #fef2f2 !important; color: #dc2626 !important; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .voice-controls { display: flex; gap: 0.5rem; padding: 0.4rem 0.6rem; background: #f8fafc; border-top: 1px solid #e2e8f0; align-items: center; justify-content: center; }
+  .voice-controls label { font-size: 0.8rem; color: #64748b; cursor: pointer; display: flex; align-items: center; gap: 0.3rem; }
+  .voice-controls input[type="checkbox"] { cursor: pointer; }
+  .voice-controls select { font-size: 0.8rem; padding: 0.2rem 0.4rem; border: 1px solid #e2e8f0; border-radius: 4px; background: white; color: #475569; }
+  .listening-bar { height: 3px; background: #e2e8f0; overflow: hidden; }
+  .listening-bar .fill { height: 100%; width: 0; background: #dc2626; transition: width 0.1s; }
   .actions { display: flex; gap: 0.5rem; padding: 0.6rem; justify-content: center; background: #f8fafc; }
   .actions button { padding: 0.5rem 1.2rem; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; background: white; }
   .actions button:hover { border-color: #2563eb; color: #2563eb; }
@@ -37,6 +47,7 @@
   .actions .new-btn:hover { background: #16a34a; color: white; }
   .status { text-align: center; padding: 0.4rem; font-size: 0.75rem; color: #64748b; background: #f8fafc; }
   .status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; margin-right: 4px; vertical-align: middle; }
+  .no-speech { display: none; text-align: center; padding: 0.5rem; font-size: 0.78rem; color: #dc2626; background: #fef2f2; }
 </style>
 </head><body>
 
@@ -45,11 +56,19 @@
     <h1>Fiji IT Solutions</h1>
     <p>AI Receptionist - Live Demo</p>
   </div>
-  <div class="status"><span class="dot"></span>Receptionist online</div>
+  <div class="status"><span class="dot"></span><span id="statusText">Receptionist online</span></div>
+  <div class="no-speech" id="noSpeech">Your browser doesn't support speech recognition. Use Chrome or Edge for voice input.</div>
   <div class="messages" id="messages"></div>
+  <div class="listening-bar" id="listenBar"><div class="fill" id="listenFill"></div></div>
   <div class="input-area">
-    <input id="input" placeholder="Type a message..." autocomplete="off">
+    <input id="input" placeholder="Type or tap the mic..." autocomplete="off">
+    <button class="mic-btn" id="micBtn" onclick="toggleMic()" title="Hold to talk, or tap to toggle">🎤</button>
     <button id="sendBtn" onclick="send()">Send</button>
+  </div>
+  <div class="voice-controls">
+    <label><input type="checkbox" id="speakToggle" checked> Speak replies</label>
+    <label><input type="checkbox" id="autoMicToggle"> Auto-listen</label>
+    <select id="voiceSelect" title="Voice"></select>
   </div>
   <div class="actions">
     <button class="end-btn" onclick="endCall()">End Call &amp; Extract Lead</button>
@@ -58,20 +77,149 @@
 </div>
 
 <script>
-const SYSTEM_PROMPT = `You are the virtual receptionist for Fiji IT Solutions.
-Collect: 1) Name  2) Phone  3) Email  4) Requirement.
-Be warm, professional, one question at a time.`;
+const msgsEl = document.getElementById('messages');
+const inputEl = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+const micBtn = document.getElementById('micBtn');
+const speakToggle = document.getElementById('speakToggle');
+const autoMicToggle = document.getElementById('autoMicToggle');
+const voiceSelect = document.getElementById('voiceSelect');
+const statusText = document.getElementById('statusText');
+const listenFill = document.getElementById('listenFill');
+const noSpeechEl = document.getElementById('noSpeech');
 
 let messages = [];
 let collected = { name: false, phone: false, email: false, requirement: false };
 let ended = false;
+let isRecording = false;
+let recognition = null;
+let isSpeaking = false;
 
-const msgsEl = document.getElementById('messages');
-const inputEl = document.getElementById('input');
-const sendBtn = document.getElementById('sendBtn');
+// ── Speech Recognition Setup ──
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+
+  recognition.onstart = () => {
+    isRecording = true;
+    micBtn.classList.add('recording');
+    micBtn.textContent = '⏹';
+    statusText.textContent = 'Listening...';
+    listenFill.style.width = '100%';
+    listenFill.style.background = '#dc2626';
+  };
+
+  recognition.onresult = (e) => {
+    let interim = '';
+    let final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) {
+        final += e.results[i][0].transcript;
+      } else {
+        interim += e.results[i][0].transcript;
+      }
+    }
+    inputEl.value = final || interim;
+    if (final) {
+      send();
+    }
+  };
+
+  recognition.onerror = (e) => {
+    if (e.error !== 'no-speech' && e.error !== 'aborted') {
+      console.error('Speech error:', e.error);
+    }
+    stopMic();
+  };
+
+  recognition.onend = () => {
+    stopMic();
+  };
+} else {
+  noSpeechEl.style.display = 'block';
+  micBtn.disabled = true;
+  micBtn.style.opacity = '0.4';
+}
+
+// ── Speech Synthesis Setup ──
+const synth = window.speechSynthesis;
+let voices = [];
+
+function loadVoices() {
+  voices = synth.getVoices();
+  voiceSelect.innerHTML = '';
+  const english = voices.filter(v => v.lang.startsWith('en'));
+  const toShow = english.length > 0 ? english : voices.slice(0, 10);
+  toShow.forEach((v, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.dataset.voiceIndex = voices.indexOf(v);
+    const label = v.name.replace(/Microsoft |Google |Apple /g, '');
+    opt.textContent = label.length > 25 ? label.slice(0, 25) + '...' : label;
+    voiceSelect.appendChild(opt);
+  });
+  // Try to pick a good female voice by default
+  const preferred = toShow.findIndex(v =>
+    /samantha|karen|zira|female|fiona|moira|victoria|susan/i.test(v.name)
+  );
+  if (preferred >= 0) voiceSelect.selectedIndex = preferred;
+}
+
+synth.onvoiceschanged = loadVoices;
+loadVoices();
+
+function speak(text) {
+  if (!speakToggle.checked || !synth) return Promise.resolve();
+  return new Promise(resolve => {
+    synth.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 1.05;
+    utter.pitch = 1.1;
+    const selectedOpt = voiceSelect.options[voiceSelect.selectedIndex];
+    if (selectedOpt && voices.length) {
+      utter.voice = voices[parseInt(selectedOpt.dataset.voiceIndex)];
+    }
+    isSpeaking = true;
+    statusText.textContent = 'Speaking...';
+    utter.onend = () => {
+      isSpeaking = false;
+      statusText.textContent = 'Receptionist online';
+      resolve();
+      if (autoMicToggle.checked && !ended) {
+        setTimeout(() => toggleMic(), 400);
+      }
+    };
+    utter.onerror = () => { isSpeaking = false; resolve(); };
+    synth.speak(utter);
+  });
+}
+
+// ── Mic Controls ──
+function toggleMic() {
+  if (!recognition) return;
+  if (isSpeaking) { synth.cancel(); return; }
+  if (isRecording) {
+    recognition.stop();
+  } else {
+    inputEl.value = '';
+    recognition.start();
+  }
+}
+
+function stopMic() {
+  isRecording = false;
+  micBtn.classList.remove('recording');
+  micBtn.textContent = '🎤';
+  statusText.textContent = 'Receptionist online';
+  listenFill.style.width = '0';
+}
 
 inputEl.addEventListener('keypress', e => { if (e.key === 'Enter') send(); });
 
+// ── Chat Logic ──
 function addMsg(text, cls) {
   const d = document.createElement('div');
   d.className = 'msg ' + cls;
@@ -107,7 +255,6 @@ function getReply(userMsg) {
     collected.requirement = true;
     return "I understand, I'll make sure a technician follows up on that. Could I get your full name please?";
   }
-
   if (!collected.requirement && userMsg.length > 8) {
     collected.requirement = true;
     return "Got it, I've noted that down. May I have your full name please?";
@@ -129,10 +276,7 @@ function getReply(userMsg) {
     const formatted = digits.length >= 7 ? digits : userMsg;
     return `Got it, ${formatted}. And could I get your email address?`;
   }
-
-  if (!collected.phone) {
-    return "What's the best phone number to reach you at?";
-  }
+  if (!collected.phone) return "What's the best phone number to reach you at?";
 
   if (!collected.email && /@/.test(lower)) {
     collected.email = true;
@@ -140,10 +284,7 @@ function getReply(userMsg) {
     const email = emailMatch ? emailMatch[0].toLowerCase() : userMsg.toLowerCase().trim();
     return `Let me confirm: ${email} — is that correct? I've got all your details. A technician will follow up with you shortly. Is there anything else I can help you with?`;
   }
-
-  if (!collected.email) {
-    return "Could I get your email address please?";
-  }
+  if (!collected.email) return "Could I get your email address please?";
 
   if (all()) {
     if (/no|nope|that'?s? (all|it)|nothing|goodbye|bye|thanks/i.test(lower)) {
@@ -161,7 +302,6 @@ function all() { return collected.name && collected.phone && collected.email && 
 function extractLead() {
   const transcript = messages.filter(m => m.role !== 'system');
   let lead = { first_name: '', last_name: '', phone: '', email: '', requirement: '', urgency: 'low' };
-
   const allText = transcript.map(m => m.content).join('\n');
 
   const emailMatch = allText.match(/[\w.+-]+@[\w.-]+\.\w+/);
@@ -171,7 +311,6 @@ function extractLead() {
   if (phoneMatch) lead.phone = phoneMatch[0].replace(/\D/g, '');
 
   const userMsgs = transcript.filter(m => m.role === 'user').map(m => m.content);
-
   for (const msg of userMsgs) {
     const words = msg.trim().split(/\s+/);
     if (words.length >= 2 && words.length <= 4) {
@@ -183,24 +322,15 @@ function extractLead() {
       }
     }
   }
-
   for (const msg of userMsgs) {
     if (msg.length > 15 && !/@/.test(msg) && !/^\d/.test(msg.trim())) {
       const words = msg.trim().split(/\s+/);
       const allCap = words.every(w => /^[A-Z]/.test(w));
-      if (!allCap || words.length > 4) {
-        lead.requirement = msg.trim();
-        break;
-      }
+      if (!allCap || words.length > 4) { lead.requirement = msg.trim(); break; }
     }
   }
-
-  if (/urgent|emergency|down|critical|asap|can'?t work/i.test(lead.requirement)) {
-    lead.urgency = 'high';
-  } else if (/slow|issue|problem|broken|error/i.test(lead.requirement)) {
-    lead.urgency = 'medium';
-  }
-
+  if (/urgent|emergency|down|critical|asap|can'?t work/i.test(lead.requirement)) lead.urgency = 'high';
+  else if (/slow|issue|problem|broken|error/i.test(lead.requirement)) lead.urgency = 'medium';
   return lead;
 }
 
@@ -214,18 +344,22 @@ async function send() {
   addMsg(text, 'user');
 
   showTyping();
-  await new Promise(r => setTimeout(r, 600 + Math.random() * 800));
+  await new Promise(r => setTimeout(r, 500 + Math.random() * 600));
   hideTyping();
 
   const reply = getReply(text);
   messages.push({ role: 'assistant', content: reply });
   addMsg(reply, 'bot');
   sendBtn.disabled = false;
-  inputEl.focus();
+
+  await speak(reply);
+  if (!autoMicToggle.checked) inputEl.focus();
 }
 
 function endCall() {
   if (messages.length < 2) return;
+  synth.cancel();
+  ended = true;
   addMsg('--- Call ended, extracting lead... ---', 'system');
   const lead = extractLead();
   const summary =
@@ -248,25 +382,21 @@ function endCall() {
   if (!lead.email) missing.push('email');
   if (!lead.requirement) missing.push('requirement');
 
-  if (missing.length === 0) {
-    addMsg('All fields captured! This lead would be pushed to the CRM.', 'system');
-  } else {
-    addMsg('Missing: ' + missing.join(', ') + '. In production the receptionist would keep asking.', 'system');
-  }
-  ended = true;
+  if (missing.length === 0) addMsg('All fields captured! This lead would be pushed to the CRM.', 'system');
+  else addMsg('Missing: ' + missing.join(', ') + '. In production the receptionist would keep asking.', 'system');
 }
 
 function newCall() {
+  synth.cancel();
   messages = [];
   collected = { name: false, phone: false, email: false, requirement: false };
   ended = false;
   msgsEl.innerHTML = '';
-  addMsg('New call started. Type a message to begin.', 'system');
+  addMsg('New call started. Tap the mic or type to begin.', 'system');
   inputEl.focus();
 }
 
-// Auto-greeting on load
-addMsg('Welcome! This is a live demo of the Fiji IT Solutions AI Receptionist. Type a message to start a simulated call.', 'system');
+addMsg('Welcome! Tap 🎤 to talk or type below. The receptionist will speak back to you. Check "Auto-listen" for hands-free conversation.', 'system');
 inputEl.focus();
 </script>
 </body></html>
