@@ -1,0 +1,27 @@
+[
+  {
+    "estimate_id": "${i.id}",
+    "action": "declined",
+    "timestamp": 1781420237.342473
+  },
+  {
+    "estimate_id": "mq7rl1x9yatt4r9ho",
+    "action": "approved",
+    "timestamp": 1781077676.2238736
+  },
+  {
+    "estimate_id": "mq7s1v2ykg096wfyv",
+    "action": "approved",
+    "timestamp": 1781078380.0187979
+  },
+  {
+    "estimate_id": "test123",
+    "action": "approved",
+    "timestamp": 1781893416.6759198
+  },
+  {
+    "estimate_id": "mqvulp0fe7kwipx1g",
+    "action": "approved",
+    "timestamp": 1782533871.9611778
+  }
+]
