@@ -47,3 +47,4 @@ screenshots/
 # Temporary analysis files
 *-AUDIT-REPORT.md
 *-ACTION-PLAN.md
+Empire/profield/node_modules/
