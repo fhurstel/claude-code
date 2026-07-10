@@ -1,0 +1,741 @@
+[
+ {
+  "name": "clients",
+  "type": "base",
+  "fields": [
+   {
+    "name": "name",
+    "type": "text",
+    "required": true
+   },
+   {
+    "name": "phone",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "email",
+    "type": "email"
+   },
+   {
+    "name": "address",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "proptype",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "client_type",
+    "type": "select",
+    "values": [
+     "Residential",
+     "Commercial",
+     "HOA"
+    ],
+    "maxSelect": 1,
+    "required": false
+   },
+   {
+    "name": "since",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "location",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "notes",
+    "type": "json",
+    "maxSize": 2000000
+   }
+  ],
+  "indexes": [],
+  "listRule": "@request.auth.id != \"\"",
+  "viewRule": "@request.auth.id != \"\"",
+  "createRule": "@request.auth.id != \"\"",
+  "updateRule": "@request.auth.id != \"\"",
+  "deleteRule": "@request.auth.id != \"\""
+ },
+ {
+  "name": "leads",
+  "type": "base",
+  "fields": [
+   {
+    "name": "title",
+    "type": "text",
+    "required": true
+   },
+   {
+    "name": "channel",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "phone",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "email",
+    "type": "email"
+   },
+   {
+    "name": "priority",
+    "type": "select",
+    "values": [
+     "Urgent",
+     "Normal",
+     "Low",
+     "Spam"
+    ],
+    "maxSelect": 1,
+    "required": false
+   },
+   {
+    "name": "status",
+    "type": "select",
+    "values": [
+     "New",
+     "Contacted",
+     "Estimate Sent",
+     "Won",
+     "Lost",
+     "Dismissed"
+    ],
+    "maxSelect": 1,
+    "required": false
+   },
+   {
+    "name": "message",
+    "type": "text",
+    "required": false,
+    "max": 5000
+   },
+   {
+    "name": "scope",
+    "type": "text",
+    "required": false,
+    "max": 2000
+   },
+   {
+    "name": "timeline",
+    "type": "json",
+    "maxSize": 2000000
+   },
+   {
+    "name": "location",
+    "type": "text",
+    "required": false
+   }
+  ],
+  "indexes": [],
+  "listRule": "@request.auth.id != \"\"",
+  "viewRule": "@request.auth.id != \"\"",
+  "createRule": "@request.auth.id != \"\"",
+  "updateRule": "@request.auth.id != \"\"",
+  "deleteRule": "@request.auth.id != \"\""
+ },
+ {
+  "name": "estimates",
+  "type": "base",
+  "fields": [
+   {
+    "name": "number",
+    "type": "text",
+    "required": true
+   },
+   {
+    "name": "client",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "description",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "total",
+    "type": "number",
+    "required": false
+   },
+   {
+    "name": "status",
+    "type": "select",
+    "values": [
+     "draft",
+     "awaiting",
+     "accepted",
+     "declined",
+     "converted"
+    ],
+    "maxSelect": 1,
+    "required": false
+   },
+   {
+    "name": "lines",
+    "type": "json",
+    "maxSize": 2000000
+   },
+   {
+    "name": "location",
+    "type": "text",
+    "required": false
+   }
+  ],
+  "indexes": [
+   "CREATE UNIQUE INDEX idx_est_number ON estimates (number)"
+  ],
+  "listRule": "@request.auth.id != \"\"",
+  "viewRule": "@request.auth.id != \"\"",
+  "createRule": "@request.auth.id != \"\"",
+  "updateRule": "@request.auth.id != \"\"",
+  "deleteRule": "@request.auth.id != \"\""
+ },
+ {
+  "name": "jobs",
+  "type": "base",
+  "fields": [
+   {
+    "name": "number",
+    "type": "text",
+    "required": true
+   },
+   {
+    "name": "description",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "client",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "tech",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "date",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "value",
+    "type": "number",
+    "required": false
+   },
+   {
+    "name": "status",
+    "type": "select",
+    "values": [
+     "scheduled",
+     "in_progress",
+     "on_hold",
+     "completed"
+    ],
+    "maxSelect": 1,
+    "required": false
+   },
+   {
+    "name": "notes",
+    "type": "text",
+    "required": false,
+    "max": 5000
+   },
+   {
+    "name": "address",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "location",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "budget_total",
+    "type": "number",
+    "required": false
+   },
+   {
+    "name": "budget_lines",
+    "type": "json",
+    "maxSize": 2000000
+   }
+  ],
+  "indexes": [
+   "CREATE UNIQUE INDEX idx_job_number ON jobs (number)"
+  ],
+  "listRule": "@request.auth.id != \"\"",
+  "viewRule": "@request.auth.id != \"\"",
+  "createRule": "@request.auth.id != \"\"",
+  "updateRule": "@request.auth.id != \"\"",
+  "deleteRule": "@request.auth.id != \"\""
+ },
+ {
+  "name": "job_costs",
+  "type": "base",
+  "fields": [
+   {
+    "name": "job",
+    "type": "text",
+    "required": true
+   },
+   {
+    "name": "description",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "category",
+    "type": "select",
+    "values": [
+     "Labor",
+     "Materials",
+     "Subcontractor",
+     "Permits",
+     "Other"
+    ],
+    "maxSelect": 1,
+    "required": false
+   },
+   {
+    "name": "amount",
+    "type": "number",
+    "required": false
+   },
+   {
+    "name": "date",
+    "type": "text",
+    "required": false
+   }
+  ],
+  "indexes": [],
+  "listRule": "@request.auth.id != \"\"",
+  "viewRule": "@request.auth.id != \"\"",
+  "createRule": "@request.auth.id != \"\"",
+  "updateRule": "@request.auth.id != \"\"",
+  "deleteRule": "@request.auth.id != \"\""
+ },
+ {
+  "name": "change_orders",
+  "type": "base",
+  "fields": [
+   {
+    "name": "job",
+    "type": "text",
+    "required": true
+   },
+   {
+    "name": "description",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "amount",
+    "type": "number",
+    "required": false
+   },
+   {
+    "name": "status",
+    "type": "select",
+    "values": [
+     "pending",
+     "approved",
+     "declined"
+    ],
+    "maxSelect": 1,
+    "required": false
+   },
+   {
+    "name": "date",
+    "type": "text",
+    "required": false
+   }
+  ],
+  "indexes": [],
+  "listRule": "@request.auth.id != \"\"",
+  "viewRule": "@request.auth.id != \"\"",
+  "createRule": "@request.auth.id != \"\"",
+  "updateRule": "@request.auth.id != \"\"",
+  "deleteRule": "@request.auth.id != \"\""
+ },
+ {
+  "name": "vendors",
+  "type": "base",
+  "fields": [
+   {
+    "name": "name",
+    "type": "text",
+    "required": true
+   },
+   {
+    "name": "trade",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "contact",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "phone",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "email",
+    "type": "email"
+   }
+  ],
+  "indexes": [],
+  "listRule": "@request.auth.id != \"\"",
+  "viewRule": "@request.auth.id != \"\"",
+  "createRule": "@request.auth.id != \"\"",
+  "updateRule": "@request.auth.id != \"\"",
+  "deleteRule": "@request.auth.id != \"\""
+ },
+ {
+  "name": "purchase_orders",
+  "type": "base",
+  "fields": [
+   {
+    "name": "number",
+    "type": "text",
+    "required": true
+   },
+   {
+    "name": "job",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "vendor",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "description",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "amount",
+    "type": "number",
+    "required": false
+   },
+   {
+    "name": "status",
+    "type": "select",
+    "values": [
+     "draft",
+     "sent",
+     "received",
+     "paid"
+    ],
+    "maxSelect": 1,
+    "required": false
+   },
+   {
+    "name": "date",
+    "type": "text",
+    "required": false
+   }
+  ],
+  "indexes": [
+   "CREATE UNIQUE INDEX idx_po_number ON purchase_orders (number)"
+  ],
+  "listRule": "@request.auth.id != \"\"",
+  "viewRule": "@request.auth.id != \"\"",
+  "createRule": "@request.auth.id != \"\"",
+  "updateRule": "@request.auth.id != \"\"",
+  "deleteRule": "@request.auth.id != \"\""
+ },
+ {
+  "name": "invoices",
+  "type": "base",
+  "fields": [
+   {
+    "name": "number",
+    "type": "text",
+    "required": true
+   },
+   {
+    "name": "client",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "job",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "total",
+    "type": "number",
+    "required": false
+   },
+   {
+    "name": "paid",
+    "type": "number",
+    "required": false
+   },
+   {
+    "name": "issued",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "due",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "status",
+    "type": "select",
+    "values": [
+     "sent",
+     "overdue",
+     "paid"
+    ],
+    "maxSelect": 1,
+    "required": false
+   },
+   {
+    "name": "lines",
+    "type": "json",
+    "maxSize": 2000000
+   }
+  ],
+  "indexes": [
+   "CREATE UNIQUE INDEX idx_inv_number ON invoices (number)"
+  ],
+  "listRule": "@request.auth.id != \"\"",
+  "viewRule": "@request.auth.id != \"\"",
+  "createRule": "@request.auth.id != \"\"",
+  "updateRule": "@request.auth.id != \"\"",
+  "deleteRule": "@request.auth.id != \"\""
+ },
+ {
+  "name": "daily_logs",
+  "type": "base",
+  "fields": [
+   {
+    "name": "job",
+    "type": "text",
+    "required": true
+   },
+   {
+    "name": "date",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "crew",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "hours",
+    "type": "number",
+    "required": false
+   },
+   {
+    "name": "weather",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "work",
+    "type": "text",
+    "required": false,
+    "max": 3000
+   },
+   {
+    "name": "delays",
+    "type": "text",
+    "required": false
+   }
+  ],
+  "indexes": [],
+  "listRule": "@request.auth.id != \"\"",
+  "viewRule": "@request.auth.id != \"\"",
+  "createRule": "@request.auth.id != \"\"",
+  "updateRule": "@request.auth.id != \"\"",
+  "deleteRule": "@request.auth.id != \"\""
+ },
+ {
+  "name": "catalog_items",
+  "type": "base",
+  "fields": [
+   {
+    "name": "name",
+    "type": "text",
+    "required": true
+   },
+   {
+    "name": "category",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "unit",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "cost",
+    "type": "number",
+    "required": false
+   },
+   {
+    "name": "markup",
+    "type": "number",
+    "required": false
+   }
+  ],
+  "indexes": [],
+  "listRule": "@request.auth.id != \"\"",
+  "viewRule": "@request.auth.id != \"\"",
+  "createRule": "@request.auth.id != \"\"",
+  "updateRule": "@request.auth.id != \"\"",
+  "deleteRule": "@request.auth.id != \"\""
+ },
+ {
+  "name": "estimate_templates",
+  "type": "base",
+  "fields": [
+   {
+    "name": "name",
+    "type": "text",
+    "required": true
+   },
+   {
+    "name": "items",
+    "type": "json",
+    "maxSize": 2000000
+   }
+  ],
+  "indexes": [],
+  "listRule": "@request.auth.id != \"\"",
+  "viewRule": "@request.auth.id != \"\"",
+  "createRule": "@request.auth.id != \"\"",
+  "updateRule": "@request.auth.id != \"\"",
+  "deleteRule": "@request.auth.id != \"\""
+ },
+ {
+  "name": "locations",
+  "type": "base",
+  "fields": [
+   {
+    "name": "name",
+    "type": "text",
+    "required": true
+   },
+   {
+    "name": "address",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "phone",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "email",
+    "type": "email"
+   },
+   {
+    "name": "manager",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "status",
+    "type": "select",
+    "values": [
+     "active",
+     "opening"
+    ],
+    "maxSelect": 1,
+    "required": false
+   }
+  ],
+  "indexes": [],
+  "listRule": "@request.auth.id != \"\"",
+  "viewRule": "@request.auth.id != \"\"",
+  "createRule": "@request.auth.id != \"\"",
+  "updateRule": "@request.auth.id != \"\"",
+  "deleteRule": "@request.auth.id != \"\""
+ },
+ {
+  "name": "workers",
+  "type": "base",
+  "fields": [
+   {
+    "name": "name",
+    "type": "text",
+    "required": true
+   },
+   {
+    "name": "role",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "location",
+    "type": "text",
+    "required": false
+   }
+  ],
+  "indexes": [],
+  "listRule": "@request.auth.id != \"\"",
+  "viewRule": "@request.auth.id != \"\"",
+  "createRule": "@request.auth.id != \"\"",
+  "updateRule": "@request.auth.id != \"\"",
+  "deleteRule": "@request.auth.id != \"\""
+ },
+ {
+  "name": "job_photos",
+  "type": "base",
+  "fields": [
+   {
+    "name": "job",
+    "type": "text",
+    "required": true
+   },
+   {
+    "name": "label",
+    "type": "text",
+    "required": false
+   },
+   {
+    "name": "photo",
+    "type": "file",
+    "maxSelect": 1,
+    "maxSize": 10485760,
+    "mimeTypes": [
+     "image/jpeg",
+     "image/png",
+     "image/webp",
+     "image/heic"
+    ]
+   }
+  ],
+  "indexes": [],
+  "listRule": "@request.auth.id != \"\"",
+  "viewRule": "@request.auth.id != \"\"",
+  "createRule": "@request.auth.id != \"\"",
+  "updateRule": "@request.auth.id != \"\"",
+  "deleteRule": "@request.auth.id != \"\""
+ }
+]
