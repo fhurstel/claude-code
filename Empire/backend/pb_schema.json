@@ -737,5 +737,33 @@
   "createRule": "@request.auth.id != \"\"",
   "updateRule": "@request.auth.id != \"\"",
   "deleteRule": "@request.auth.id != \"\""
+ },
+ {
+  "name": "journal",
+  "type": "base",
+  "fields": [
+   {
+    "name": "atype",
+    "type": "text",
+    "required": true
+   },
+   {
+    "name": "payload",
+    "type": "json",
+    "maxSize": 2000000
+   },
+   {
+    "name": "created",
+    "type": "autodate",
+    "onCreate": true,
+    "onUpdate": false
+   }
+  ],
+  "indexes": [],
+  "listRule": "@request.auth.id != \"\"",
+  "viewRule": "@request.auth.id != \"\"",
+  "createRule": "@request.auth.id != \"\"",
+  "updateRule": "@request.auth.id != \"\"",
+  "deleteRule": "@request.auth.id != \"\""
  }
 ]

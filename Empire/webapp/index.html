@@ -721,7 +721,7 @@ tr:hover td { background: var(--surface2); }
         <div class="user-role">Empire Remodels</div>
       </div>
     </div>
-    <div style="text-align:center;font-size:10px;color:#475569;padding:6px 0 2px;letter-spacing:.4px">build v4.0</div>
+    <div style="text-align:center;font-size:10px;color:#475569;padding:6px 0 2px;letter-spacing:.4px">build v4.2</div>
   </div>
 </div>
 
@@ -733,6 +733,7 @@ tr:hover td { background: var(--surface2); }
       <svg width="20" height="20"><use href="#ic-menu"/></svg>
     </button>
     <div class="topbar-title" id="page-title">Dashboard</div>
+    <span id="pb-mode-badge" class="chip chip-green" style="display:none;flex-shrink:0" title="Connected to backend — data syncs across devices">☁ Synced</span>
     <div class="topbar-actions">
       <!-- Location switcher -->
       <div style="position:relative">
@@ -2199,6 +2200,14 @@ tr:hover td { background: var(--surface2); }
             <div><label style="font-size:12px;font-weight:700;color:var(--text-muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px">Address</label><input id="set-address" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface2);color:var(--text-primary);font-family:var(--font);outline:none" value="2500 Capitol Ave, Sacramento CA 95816"/></div>
             <div><label style="font-size:12px;font-weight:700;color:var(--text-muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px">License #</label><input id="set-license" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface2);color:var(--text-primary);font-family:var(--font);outline:none" value="C36-0094812"/></div>
             <div><label style="font-size:12px;font-weight:700;color:var(--text-muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px">Default Tax Rate (%)</label><input id="set-tax" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface2);color:var(--text-primary);font-family:var(--font);outline:none" value="8.5"/></div>
+            <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
+              <label style="font-size:12px;font-weight:700;color:var(--text-muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px">Backend Server (PocketBase URL)</label>
+              <div style="display:flex;gap:8px">
+                <input id="set-apiurl" placeholder="https://pb.yourdomain.com — blank = offline mode" style="flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface2);color:var(--text-primary);font-family:var(--font);outline:none"/>
+                <button class="btn btn-primary" onclick="setBackendUrl()">Connect</button>
+              </div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:5px">With a backend connected, data is shared across all devices and team members. Leave blank to keep data in this browser only.</div>
+            </div>
             <div style="display:flex;gap:10px;align-self:flex-start">
               <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
               <button class="btn btn-ghost" style="color:var(--red)" onclick="resetDemoData()" title="Clears everything you created and restores the original demo data">↺ Reset Demo Data</button>
@@ -2391,6 +2400,28 @@ tr:hover td { background: var(--surface2); }
       <button class="btn btn-ghost" onclick="closeAssignModal()">Cancel</button>
       <button class="btn btn-primary" onclick="submitAssignment()"><svg style="width:13px;height:13px"><use href="#ic-send"/></svg> Assign &amp; Notify</button>
     </div>
+  </div>
+</div>
+
+<!-- POCKETBASE LOGIN OVERLAY -->
+<div id="pb-login-overlay" style="display:none;position:fixed;inset:0;background:var(--canvas);z-index:2000;align-items:center;justify-content:center">
+  <div style="width:380px;max-width:92vw;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:28px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <div class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" style="width:18px;height:18px"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+      <div style="font-size:17px;font-weight:800">Empire Remodels</div>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:18px">Sign in to your company backend<br><span id="pb-login-url" style="font-family:var(--font-mono);font-size:11px"></span></div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">Email</label>
+      <input class="form-input" id="pb-email" type="email" placeholder="you@company.com" onkeydown="if(event.key==='Enter')submitPbLogin()"/>
+    </div>
+    <div class="form-group" style="margin-bottom:6px">
+      <label class="form-label">Password</label>
+      <input class="form-input" id="pb-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitPbLogin()"/>
+    </div>
+    <div id="pb-login-err" style="font-size:12px;color:var(--red-text);min-height:18px;margin-bottom:8px"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px" onclick="submitPbLogin()">Sign In</button>
+    <button class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:8px;font-size:12px" onclick="pbUseOffline()">Use offline mode (this browser only)</button>
   </div>
 </div>
 
@@ -2866,10 +2897,55 @@ let journal = (() => {
   try { return JSON.parse(localStorage.getItem(JOURNAL_KEY) || '[]'); }
   catch (e) { return []; }
 })();
+
+// ── POCKETBASE SYNC (optional backend mode) ──────────────────
+// When an API URL is configured (Settings → Backend), the journal is stored on
+// the PocketBase server instead of this browser — shared across devices/users.
+const PB_URL_KEY = 'empireApiUrl';
+let pbUrl = (() => { try { return localStorage.getItem(PB_URL_KEY) || ''; } catch (e) { return ''; } })();
+let pbToken = (() => { try { return sessionStorage.getItem('empirePbToken') || ''; } catch (e) { return ''; } })();
+const pbActive = () => !!(pbUrl && pbToken);
+
+async function pbLogin(email, password) {
+  const res = await fetch(pbUrl + '/api/collections/users/auth-with-password', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identity: email, password }),
+  });
+  if (!res.ok) throw new Error('Login failed (' + res.status + ')');
+  const data = await res.json();
+  pbToken = data.token;
+  try { sessionStorage.setItem('empirePbToken', pbToken); } catch (e) {}
+  return data.record;
+}
+
+async function pbFetchJournal() {
+  const out = [];
+  let pg = 1;
+  while (true) {
+    const res = await fetch(`${pbUrl}/api/collections/journal/records?perPage=400&page=${pg}&sort=created`, {
+      headers: { Authorization: pbToken },
+    });
+    if (!res.ok) throw new Error('Journal fetch failed');
+    const data = await res.json();
+    data.items.forEach(r => out.push({ type: r.atype, payload: r.payload }));
+    if (pg >= data.totalPages) break;
+    pg++;
+  }
+  return out;
+}
+
+function pbPushAction(type, payload) {
+  fetch(pbUrl + '/api/collections/journal/records', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: pbToken },
+    body: JSON.stringify({ atype: type, payload }),
+  }).catch(() => { toast('⚠️ Sync failed — change saved locally only'); });
+}
+
 function logAction(type, payload) {
   if (replaying) return;
   journal.push({ type, payload });
   try { localStorage.setItem(JOURNAL_KEY, JSON.stringify(journal)); } catch (e) {}
+  if (pbActive()) pbPushAction(type, payload);
 }
 function resetDemoData() {
   try { localStorage.removeItem(JOURNAL_KEY); } catch (e) {}
@@ -3260,9 +3336,17 @@ function updateTimers() {
 updateTimers();
 setInterval(updateTimers, 30000);
 
+function findWorkerCard(workerId) {
+  const evTarget = (typeof event !== 'undefined' && event && event.target) ? event.target : null;
+  return (evTarget && evTarget.closest('.worker-card'))
+    || [...document.querySelectorAll('.worker-card')].find(c => (c.querySelector('.clock-btn')?.getAttribute('onclick') || '').includes(`'${workerId}'`))
+    || null;
+}
+
 function clockOut(workerId, initials) {
   clockState[workerId] = false;
-  const card = event.target.closest('.worker-card');
+  const card = findWorkerCard(workerId);
+  if (!card) return;
   card.querySelector('.status-stripe').className = 'status-stripe stripe-gray';
   card.querySelector('.chip').className = 'chip chip-gray';
   card.querySelector('.chip').textContent = 'Clocked Out';
@@ -3279,7 +3363,8 @@ function clockOut(workerId, initials) {
 function clockIn(workerId, initials, jobNum) {
   clockState[workerId] = true;
   clockStart[workerId] = Date.now();
-  const card = event.target.closest('.worker-card');
+  const card = findWorkerCard(workerId);
+  if (!card) return;
   card.querySelector('.status-stripe').className = 'status-stripe stripe-green';
   card.querySelector('.chip').className = 'chip chip-green';
   card.querySelector('.chip').textContent = 'On Site';
@@ -3510,7 +3595,13 @@ function openEstimateBuilder(estNum) {
     document.getElementById('est-client-email').value = '';
     document.getElementById('est-client-address').value = '';
     document.getElementById('est-notes').value = desc;
-    addEstLineItem(desc, 1, price);
+    // Restore the estimate's full line items when we have them; fall back to a single consolidated line
+    const saved = (typeof EST_LINES !== 'undefined' && EST_LINES[estNum] && EST_LINES[estNum].length) ? EST_LINES[estNum] : null;
+    if (saved) {
+      saved.forEach(l => addEstLineItem(l[0], l[1], l[2]));
+    } else {
+      addEstLineItem(desc, 1, price);
+    }
   }
   document.getElementById('est-builder-modal').classList.add('open');
 }
@@ -3686,6 +3777,7 @@ function markLeadContacted() {
         tr.cells[5].innerHTML = '<span class="chip chip-blue">Contacted</span>';
       }
     });
+    logAction('lead-stage', { name: d.title, stage: 'Contacted' });
     addNotif('✓ Lead contacted', d.title);
   }
   refreshLeadCount();
@@ -3793,6 +3885,7 @@ function dismissLead() {
         tr.cells[7].innerHTML = '—';
       }
     });
+    logAction('lead-stage', { name: d.title, stage: 'Dismissed' });
   }
   refreshLeadCount();
   toast('Lead dismissed');
@@ -4010,6 +4103,7 @@ function sendEstimate(estNum, clientName) {
     }
   });
   refreshEstPipeline();
+  logAction('est-status', { num: estNum, status: 'awaiting' });
   addNotif('📤 Estimate sent', `${estNum} — ${clientName}`);
   toast(`Estimate ${estNum} sent to ${clientName} ✉️`);
 }
@@ -4071,6 +4165,7 @@ function convertToJob(estNum, clientName) {
   const el = (EST_LINES[estNum] && EST_LINES[estNum].length) ? EST_LINES[estNum].map(l => [l[0], l[1], l[2]]) : [['Contract total', 1, bt]];
   JOB_DATA[jn].budget = { total: bt, lines: el, costs: [] };
   logAction('jobbudget', { jn, total: bt, lines: el });
+  logAction('est-status', { num: estNum, status: 'converted' });
   toast(`${jn} created for ${clientName} from ${estNum} 🎉`);
   addNotif(`🔨 New job created`, `${jn} — ${clientName} (from ${estNum})`);
   nav('jobs');
@@ -5020,6 +5115,7 @@ function saveClientEdits() {
   c.initials = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   // update type chip class
   c.typeChip = c.type === 'Commercial' || c.type === 'HOA' ? 'chip-blue' : 'chip-green';
+  logAction('client-edit', { id: currentClientId, name: c.name, phone: c.phone, email: c.email, addr: c.addr, proptype: c.proptype, ctype: c.type });
   closeEditClientModal();
   openClientProfile(currentClientId); // re-render with updated data
   toast('Client info updated ✓');
@@ -6383,6 +6479,7 @@ function markJobComplete() {
     }
   });
   refreshDashJobs();
+  logAction('job-status', { num: currentJobId, status: 'completed' });
   addActivity(currentJobId, '🏁', 'Job marked complete');
   addNotif(`🏁 ${currentJobId} completed`, `${j.desc} — ${j.client}`);
   toast(`${currentJobId} marked complete 🎉`);
@@ -7262,6 +7359,49 @@ function replayJournal() {
           applyAssignment(p.num, p.worker, p.date);
           break;
         }
+        case 'job-status': {
+          const j = JOB_DATA[p.num];
+          if (j && p.status === 'completed') {
+            j.status = 'completed'; j.statusLabel = 'Completed'; j.statusClass = 'chip-green';
+            document.querySelectorAll('#jobs-table tbody tr').forEach(tr => {
+              if (tr.cells[0]?.textContent.trim() === p.num) {
+                tr.dataset.status = 'completed';
+                tr.cells[6].innerHTML = '<span class="chip chip-green">Completed</span>';
+              }
+            });
+          }
+          break;
+        }
+        case 'est-status': {
+          document.querySelectorAll('#est-table tbody tr').forEach(tr => {
+            if (tr.cells[0]?.textContent.trim() !== p.num) return;
+            if (p.status === 'awaiting') {
+              tr.dataset.status = 'awaiting';
+              tr.cells[6].innerHTML = '<span class="chip chip-yellow">Awaiting</span>';
+            } else if (p.status === 'converted') {
+              tr.cells[6].innerHTML = '<span class="chip chip-green">Converted ✓</span>';
+              tr.cells[7].innerHTML = '—';
+            }
+          });
+          break;
+        }
+        case 'client-edit': {
+          const c = CLIENT_DATA[p.id];
+          if (c) {
+            c.name = p.name || c.name; c.phone = p.phone || c.phone; c.email = p.email || c.email;
+            c.addr = p.addr || c.addr; c.proptype = p.proptype || c.proptype;
+            if (p.ctype) { c.type = p.ctype; c.typeChip = (p.ctype === 'Commercial' || p.ctype === 'HOA') ? 'chip-blue' : 'chip-green'; }
+            c.initials = c.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+            document.querySelectorAll('#clients-table tbody tr').forEach(tr => {
+              if ((tr.querySelector('strong')?.getAttribute('onclick') || '').includes(`'${p.id}'`)) {
+                tr.querySelector('strong').textContent = c.name;
+                tr.cells[1].textContent = c.phone;
+                tr.cells[2].textContent = c.email;
+              }
+            });
+          }
+          break;
+        }
         case 'jobbudget': {
           if (JOB_DATA[p.jn]) {
             const prev = JOB_DATA[p.jn].budget;
@@ -7684,15 +7824,72 @@ function applySettings() {
 }
 
 // ── STARTUP: seed branch data, replay saved records, scope to active location ──
-loadSettings();
-populateSettingsForm();
-applySettings();
-seedBranchData();
-seedBudgets();
-replayJournal();
-applyLocationScope();
-renderCostCatalog();
-refreshBudgetAlert();
-renderReports();
-renderSchedule();
+function bootApp() {
+  loadSettings();
+  populateSettingsForm();
+  applySettings();
+  seedBranchData();
+  seedBudgets();
+  replayJournal();
+  applyLocationScope();
+  renderCostCatalog();
+  refreshBudgetAlert();
+  renderReports();
+  renderSchedule();
+  const badge = document.getElementById('pb-mode-badge');
+  if (badge) badge.style.display = pbActive() ? '' : 'none';
+  const urlInput = document.getElementById('set-apiurl');
+  if (urlInput) urlInput.value = pbUrl;
+}
+
+function showPbLogin() {
+  const o = document.getElementById('pb-login-overlay');
+  o.style.display = 'flex';
+  document.getElementById('pb-login-url').textContent = pbUrl;
+}
+
+async function submitPbLogin() {
+  const email = document.getElementById('pb-email').value.trim();
+  const pass = document.getElementById('pb-pass').value;
+  const err = document.getElementById('pb-login-err');
+  err.textContent = '';
+  try {
+    await pbLogin(email, pass);
+    journal = await pbFetchJournal();
+    document.getElementById('pb-login-overlay').style.display = 'none';
+    bootApp();
+    toast('Connected to backend — data synced ✓');
+  } catch (e) {
+    err.textContent = 'Login failed — check email/password and that the server is reachable.';
+  }
+}
+
+function pbUseOffline() {
+  try { localStorage.removeItem(PB_URL_KEY); sessionStorage.removeItem('empirePbToken'); } catch (e) {}
+  pbUrl = ''; pbToken = '';
+  document.getElementById('pb-login-overlay').style.display = 'none';
+  bootApp();
+}
+
+function setBackendUrl() {
+  const v = (document.getElementById('set-apiurl')?.value || '').trim().replace(/\/+$/, '');
+  try {
+    if (v) localStorage.setItem(PB_URL_KEY, v);
+    else { localStorage.removeItem(PB_URL_KEY); sessionStorage.removeItem('empirePbToken'); }
+  } catch (e) {}
+  location.reload();
+}
+
+(async () => {
+  if (pbUrl) {
+    if (!pbToken) { showPbLogin(); return; }
+    try {
+      journal = await pbFetchJournal();
+    } catch (e) {
+      pbToken = ''; try { sessionStorage.removeItem('empirePbToken'); } catch (x) {}
+      showPbLogin(); return;
+    }
+  }
+  bootApp();
+})();
 </script>

@@ -63,3 +63,13 @@ tech/client accounts.
 conversion swaps its journal layer (`logAction`/`replayJournal`) for PocketBase
 SDK calls against these collections — the schema maps 1:1 to the app's data
 structures by design.
+
+## Connecting the web app (built-in since app build v4.2)
+
+1. Open the web app → Settings → **Backend Server (PocketBase URL)** → enter
+   your server URL (e.g. `https://pb.yourdomain.com`) → Connect
+2. Sign in with a user account (create accounts in the admin UI under the
+   `users` collection)
+3. A green **☁ Synced** badge appears — all created/edited records now sync
+   through the `journal` collection and are shared by every signed-in device
+4. "Use offline mode" on the login screen reverts to browser-only storage
