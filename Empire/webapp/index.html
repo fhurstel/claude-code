@@ -708,6 +708,9 @@ tr:hover td { background: var(--surface2); }
     <div class="nav-item" onclick="nav('ai');renderAIPage()">
       <svg><use href="#ic-ai"/></svg> AI Assistant
     </div>
+    <div class="nav-item" onclick="nav('audit');renderAuditLog()">
+      <svg><use href="#ic-alert"/></svg> Audit Log
+    </div>
     <div class="nav-item" onclick="nav('settings')">
       <svg><use href="#ic-settings"/></svg> Settings
     </div>
@@ -721,7 +724,7 @@ tr:hover td { background: var(--surface2); }
         <div class="user-role">Empire Remodels</div>
       </div>
     </div>
-    <div style="text-align:center;font-size:10px;color:#475569;padding:6px 0 2px;letter-spacing:.4px">build v4.2</div>
+    <div style="text-align:center;font-size:10px;color:#475569;padding:6px 0 2px;letter-spacing:.4px">build v4.3</div>
   </div>
 </div>
 
@@ -2188,6 +2191,31 @@ tr:hover td { background: var(--surface2); }
       </div>
     </div>
 
+    <!-- AUDIT LOG -->
+    <div class="page" id="page-audit">
+      <div class="card">
+        <div class="card-header">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="card-title">Audit Log</span>
+            <span class="chip chip-gray" id="audit-count" style="font-size:11px">0 events</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="search-wrap"><svg><use href="#ic-search"/></svg><input class="search-input" id="audit-search" placeholder="Filter events…" style="width:180px" oninput="renderAuditLog()"/></div>
+            <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px" onclick="exportAuditCSV()">⬇ Export CSV</button>
+          </div>
+        </div>
+        <div style="padding:10px 20px;font-size:12px;color:var(--text-muted);border-bottom:1px solid var(--border)">
+          Immutable record of every create, edit, delete, and status change — with actor and timestamp. In backend mode this is also written append-only to the server.
+        </div>
+        <div class="table-wrap">
+          <table id="audit-table">
+            <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Reference</th></tr></thead>
+            <tbody id="audit-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- SETTINGS -->
     <div class="page" id="page-settings">
       <div style="max-width:640px;display:flex;flex-direction:column;gap:16px">
@@ -2421,6 +2449,10 @@ tr:hover td { background: var(--surface2); }
     </div>
     <div id="pb-login-err" style="font-size:12px;color:var(--red-text);min-height:18px;margin-bottom:8px"></div>
     <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px" onclick="submitPbLogin()">Sign In</button>
+    <div id="pb-sso-wrap" style="display:none;margin-top:10px">
+      <div style="display:flex;align-items:center;gap:8px;margin:10px 0"><div style="flex:1;height:1px;background:var(--border)"></div><span style="font-size:11px;color:var(--text-muted)">or</span><div style="flex:1;height:1px;background:var(--border)"></div></div>
+      <div id="pb-sso-buttons" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
     <button class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:8px;font-size:12px" onclick="pbUseOffline()">Use offline mode (this browser only)</button>
   </div>
 </div>
@@ -2904,6 +2936,7 @@ let journal = (() => {
 const PB_URL_KEY = 'empireApiUrl';
 let pbUrl = (() => { try { return localStorage.getItem(PB_URL_KEY) || ''; } catch (e) { return ''; } })();
 let pbToken = (() => { try { return sessionStorage.getItem('empirePbToken') || ''; } catch (e) { return ''; } })();
+try { const a = sessionStorage.getItem('empireActor'); if (a) window.__savedActor = a; } catch (e) {}
 const pbActive = () => !!(pbUrl && pbToken);
 
 async function pbLogin(email, password) {
@@ -2914,7 +2947,8 @@ async function pbLogin(email, password) {
   if (!res.ok) throw new Error('Login failed (' + res.status + ')');
   const data = await res.json();
   pbToken = data.token;
-  try { sessionStorage.setItem('empirePbToken', pbToken); } catch (e) {}
+  currentActor = (data.record && (data.record.email || data.record.name)) || 'Backend User';
+  try { sessionStorage.setItem('empirePbToken', pbToken); sessionStorage.setItem('empireActor', currentActor); } catch (e) {}
   return data.record;
 }
 
@@ -2941,11 +2975,68 @@ function pbPushAction(type, payload) {
   }).catch(() => { toast('⚠️ Sync failed — change saved locally only'); });
 }
 
+// ── AUDIT LOG (immutable who/what/when trail) ────────────────
+const AUDIT_KEY = 'empireAudit';
+let auditLog = (() => { try { return JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]'); } catch (e) { return []; } })();
+let currentActor = 'Local User';  // set to signed-in email in backend mode
+
+// Human-readable summaries for each journaled action type
+const AUDIT_LABELS = {
+  lead: 'Created lead', 'lead-stage': 'Changed lead stage', client: 'Added client', 'client-edit': 'Edited client',
+  note: 'Added client note', job: 'Created job', 'job-status': 'Changed job status', jobbudget: 'Set job budget',
+  jobcost: 'Logged job cost', changeorder: 'Created change order', 'co-status': 'Changed change-order status',
+  estimate: 'Created estimate', 'est-status': 'Changed estimate status', invoice: 'Created invoice',
+  'portal-pay': 'Recorded payment', po: 'Created purchase order', 'po-status': 'Changed PO status',
+  vendor: 'Added vendor', 'vendor-edit': 'Edited vendor', catalog: 'Added catalog item', 'catalog-edit': 'Edited catalog item',
+  service: 'Added service', permit: 'Filed permit', article: 'Published KB article', worker: 'Added worker',
+  location: 'Added location', locsetup: 'Activated location', dailylog: 'Added daily log', assign: 'Assigned job',
+};
+function auditDescribe(type, payload) {
+  const p = payload || {};
+  const ref = p.num || p.name || p.title || p.jobId || p.jn || p.id || p.desc || p.client || '';
+  return { label: AUDIT_LABELS[type] || type, ref: String(ref).slice(0, 60) };
+}
+function recordAudit(type, payload) {
+  const d = auditDescribe(type, payload);
+  const entry = { ts: new Date().toISOString(), actor: currentActor, action: d.label, ref: d.ref, atype: type };
+  auditLog.push(entry);
+  if (auditLog.length > 2000) auditLog = auditLog.slice(-2000);
+  try { localStorage.setItem(AUDIT_KEY, JSON.stringify(auditLog)); } catch (e) {}
+  if (pbActive()) {
+    fetch(pbUrl + '/api/collections/audit_log/records', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: pbToken },
+      body: JSON.stringify(entry),
+    }).catch(() => {});
+  }
+  if (document.getElementById('page-audit')?.classList.contains('active')) renderAuditLog();
+}
+
 function logAction(type, payload) {
   if (replaying) return;
   journal.push({ type, payload });
   try { localStorage.setItem(JOURNAL_KEY, JSON.stringify(journal)); } catch (e) {}
   if (pbActive()) pbPushAction(type, payload);
+  recordAudit(type, payload);
+}
+
+function renderAuditLog() {
+  const tbody = document.getElementById('audit-tbody');
+  if (!tbody) return;
+  const q = (document.getElementById('audit-search')?.value || '').toLowerCase();
+  const rows = auditLog.slice().reverse().filter(e =>
+    !q || (e.actor + ' ' + e.action + ' ' + e.ref + ' ' + e.atype).toLowerCase().includes(q));
+  document.getElementById('audit-count').textContent = auditLog.length + ' events';
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:28px">No audit events yet</td></tr>'; return; }
+  tbody.innerHTML = rows.slice(0, 500).map(e => {
+    const dt = new Date(e.ts);
+    const when = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return `<tr><td style="white-space:nowrap;font-variant-numeric:tabular-nums;font-size:12px;color:var(--text-secondary)">${escHtml(when)}</td><td style="font-size:13px">${escHtml(e.actor)}</td><td style="font-size:13px">${escHtml(e.action)}</td><td style="font-size:12px;color:var(--text-muted)">${escHtml(e.ref)}</td></tr>`;
+  }).join('');
+}
+function exportAuditCSV() {
+  const rows = [['Timestamp (ISO)', 'Actor', 'Action', 'Reference', 'Type'],
+    ...auditLog.map(e => [e.ts, e.actor, e.action, e.ref, e.atype])];
+  downloadCSV('audit-log.csv', rows);
 }
 function resetDemoData() {
   try { localStorage.removeItem(JOURNAL_KEY); } catch (e) {}
@@ -2974,6 +3065,7 @@ const pages = {
   services:   { title: 'Services',    action: 'Add Service' },
   ai:         { title: 'AI Assistant',action: 'Clear Chat' },
   settings:   { title: 'Settings',    action: 'Save' },
+  audit:      { title: 'Audit Log',   action: '' },
 };
 
 function nav(id) {
@@ -3118,17 +3210,17 @@ function insertLead(p) {
     div.style.cssText = 'display:flex;align-items:flex-start;gap:14px;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--accent-light);cursor:pointer';
     div.onclick = (e) => openLeadDetail(leadId, e);
     div.innerHTML = `
-      <div style="width:32px;height:32px;background:${color};border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;font-weight:700;color:#fff">${initials}</div>
+      <div style="width:32px;height:32px;background:${color};border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;font-weight:700;color:#fff">${escHtml(initials)}</div>
       <div style="flex:1">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
-          <strong>${source} — ${name}</strong>
-          <span class="chip ${priorityClass}" style="font-size:10px">${priority}</span>
+          <strong>${escHtml(source)} — ${escHtml(name)}</strong>
+          <span class="chip ${priorityClass}" style="font-size:10px">${escHtml(priority)}</span>
           <span class="chip chip-blue" style="font-size:10px">New</span>
         </div>
-        <div style="font-size:12px;color:var(--text-secondary)">${phone}${service ? ' · ' + service : ''}${notes ? ' — ' + notes : ''}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${sourceIcon} Just now</div>
+        <div style="font-size:12px;color:var(--text-secondary)">${escHtml(phone)}${service ? ' · ' + escHtml(service) : ''}${notes ? ' — ' + escHtml(notes) : ''}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${escHtml(sourceIcon)} Just now</div>
       </div>
-      <button class="btn btn-primary" style="font-size:11px;padding:5px 10px;flex-shrink:0" onclick="event.stopPropagation();openLeadToEstimate('${name}','${phone}','${email}','${service}','${priority}')">→ Estimate</button>
+      <button class="btn btn-primary" style="font-size:11px;padding:5px 10px;flex-shrink:0" onclick="event.stopPropagation();openLeadToEstimate('${escAttr(name)}','${escAttr(phone)}','${escAttr(email)}','${escAttr(service)}','${escAttr(priority)}')">→ Estimate</button>
     `;
     feed.insertBefore(div, feed.firstChild);
   }
@@ -3141,14 +3233,14 @@ function insertLead(p) {
     tr.dataset.loc = loc;
     tr.onclick = (e) => openLeadDetail(leadId, e);
     tr.innerHTML = `
-      <td><strong>${name}</strong></td>
-      <td>${sourceIcon} ${sourceLabel}</td>
-      <td>${service || '—'}</td>
-      <td>${phone}</td>
-      <td><span class="chip ${priorityClass}">${priority}</span></td>
+      <td><strong>${escHtml(name)}</strong></td>
+      <td>${escHtml(sourceIcon)} ${escHtml(sourceLabel)}</td>
+      <td>${service ? escHtml(service) : '—'}</td>
+      <td>${escHtml(phone)}</td>
+      <td><span class="chip ${priorityClass}">${escHtml(priority)}</span></td>
       <td><span class="chip chip-yellow">New</span></td>
       <td>Just now</td>
-      <td><button class="btn btn-primary" style="font-size:11px;padding:4px 8px" onclick="event.stopPropagation();openLeadToEstimate('${name}','${phone}','${email}','${service}','${priority}')">→ Estimate</button></td>
+      <td><button class="btn btn-primary" style="font-size:11px;padding:4px 8px" onclick="event.stopPropagation();openLeadToEstimate('${escAttr(name)}','${escAttr(phone)}','${escAttr(email)}','${escAttr(service)}','${escAttr(priority)}')">→ Estimate</button></td>
     `;
     tbody.insertBefore(tr, tbody.firstChild);
     refreshLeadCount();
@@ -3221,7 +3313,7 @@ function openAssignModal(initials, name) {
   if (jobSel) {
     jobSel.innerHTML = Object.keys(JOB_DATA)
       .filter(num => JOB_DATA[num].status !== 'completed')
-      .map(num => `<option>${num} — ${JOB_DATA[num].desc} (${JOB_DATA[num].client})</option>`)
+      .map(num => `<option>${escHtml(num)} — ${escHtml(JOB_DATA[num].desc)} (${escHtml(JOB_DATA[num].client)})</option>`)
       .join('');
   }
   document.getElementById('assign-modal').classList.add('open');
@@ -3288,7 +3380,7 @@ function insertServiceRow(p) {
   if (!tbody) return;
   const rate = parseFloat(String(p.rate).replace(/[$,]/g, '')) || 0;
   const tr = document.createElement('tr');
-  tr.innerHTML = `<td><strong>${p.name}</strong></td><td style="font-variant-numeric:tabular-nums">$${rate}/hr</td><td>0</td><td style="font-variant-numeric:tabular-nums">$0</td><td><span class="chip chip-green">Active</span></td>`;
+  tr.innerHTML = `<td><strong>${escHtml(p.name)}</strong></td><td style="font-variant-numeric:tabular-nums">$${rate}/hr</td><td>0</td><td style="font-variant-numeric:tabular-nums">$0</td><td><span class="chip chip-green">Active</span></td>`;
   tbody.insertBefore(tr, tbody.firstChild);
 }
 
@@ -3382,7 +3474,7 @@ function addNotif(title, body) {
   dot.style.display = 'block';
   const item = document.createElement('div');
   item.className = 'notif-item';
-  item.innerHTML = `<div style="display:flex;align-items:flex-start;gap:10px"><div class="notif-dot" style="margin-top:4px;background:var(--green)"></div><div><div class="notif-title">${title}</div><div class="notif-body">${body}</div><div class="notif-time">Just now</div></div></div>`;
+  item.innerHTML = `<div style="display:flex;align-items:flex-start;gap:10px"><div class="notif-dot" style="margin-top:4px;background:var(--green)"></div><div><div class="notif-title">${escHtml(title)}</div><div class="notif-body">${escHtml(body)}</div><div class="notif-time">Just now</div></div></div>`;
   panel.insertBefore(item, panel.children[1]);
 }
 
@@ -3747,8 +3839,8 @@ function openLeadDetail(id, event) {
   const tl = document.getElementById('ld-timeline');
   tl.innerHTML = d.timeline.map(e =>
     `<div style="display:flex;gap:10px;align-items:flex-start">
-      <div style="width:22px;height:22px;background:var(--surface2);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">${e.icon}</div>
-      <div style="flex:1"><span style="font-size:12px;color:var(--text-primary)">${e.text}</span><span style="font-size:11px;color:var(--text-muted);margin-left:8px">${e.time}</span></div>
+      <div style="width:22px;height:22px;background:var(--surface2);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">${escHtml(e.icon)}</div>
+      <div style="flex:1"><span style="font-size:12px;color:var(--text-primary)">${escHtml(e.text)}</span><span style="font-size:11px;color:var(--text-muted);margin-left:8px">${escHtml(e.time)}</span></div>
     </div>`
   ).join('');
 
@@ -3832,12 +3924,12 @@ function renderLeadsBoard() {
       const openAttr = lead ? ` onclick="openLeadDetail('${lead[0]}',event)" style="cursor:pointer"` : '';
       return `<div class="kanban-card">
         <div${openAttr}>
-          <div class="kanban-card-name">${r.name}</div>
-          <div class="kanban-card-meta">${r.service || '—'}</div>
-          <div class="kanban-card-meta">${r.phone || '—'}</div>
+          <div class="kanban-card-name">${escHtml(r.name)}</div>
+          <div class="kanban-card-meta">${r.service ? escHtml(r.service) : '—'}</div>
+          <div class="kanban-card-meta">${r.phone ? escHtml(r.phone) : '—'}</div>
         </div>
         <div class="kanban-card-footer">
-          <button class="btn btn-ghost" style="font-size:11px;padding:3px 7px" onclick="event.stopPropagation();moveLeadStage('${esc(r.name)}','${esc(r.stage)}')">▸ Move</button>
+          <button class="btn btn-ghost" style="font-size:11px;padding:3px 7px" onclick="event.stopPropagation();moveLeadStage('${escAttr(r.name)}','${escAttr(r.stage)}')">▸ Move</button>
         </div>
       </div>`;
     }).join('');
@@ -3920,7 +4012,7 @@ function addEstLineItem(desc, qty, price) {
   tr.style.borderBottom = '1px solid var(--border)';
   const total = ((qty || 1) * (price || 0)).toFixed(2);
   tr.innerHTML = `
-    <td style="padding:6px 4px"><input class="form-input" style="padding:5px 8px;font-size:13px" placeholder="Description" value="${desc || ''}" oninput="recalcEst()"/></td>
+    <td style="padding:6px 4px"><input class="form-input" style="padding:5px 8px;font-size:13px" placeholder="Description" value="${desc ? escAttr(desc) : ''}" oninput="recalcEst()"/></td>
     <td style="padding:6px 4px"><input class="form-input" style="padding:5px 8px;font-size:13px;text-align:right;width:64px" type="number" min="0" value="${qty || 1}" oninput="recalcEst()"/></td>
     <td style="padding:6px 4px"><input class="form-input" style="padding:5px 8px;font-size:13px;text-align:right" type="number" min="0" step="0.01" value="${price || 0}" oninput="recalcEst()"/></td>
     <td style="padding:6px 4px 6px 8px;text-align:right;font-variant-numeric:tabular-nums;font-size:13px" id="est-row-total-${id}">$${total}</td>
@@ -3976,14 +4068,14 @@ function insertEstimateRow(num, client, desc, totalStr, status, loc) {
              : status === 'awaiting' ? '<span class="chip chip-yellow">Awaiting</span>'
              : '<span class="chip chip-green">Accepted</span>';
   const actions = status === 'draft'
-    ? `<div style="display:flex;gap:4px"><button class="btn btn-ghost" style="font-size:11px;padding:4px 8px" onclick="openEstimateBuilder('${num}')">Edit</button><button class="btn btn-primary" style="font-size:11px;padding:4px 8px" onclick="sendEstimate('${num}','${client}')">Send</button></div>`
+    ? `<div style="display:flex;gap:4px"><button class="btn btn-ghost" style="font-size:11px;padding:4px 8px" onclick="openEstimateBuilder('${escAttr(num)}')">Edit</button><button class="btn btn-primary" style="font-size:11px;padding:4px 8px" onclick="sendEstimate('${escAttr(num)}','${escAttr(client)}')">Send</button></div>`
     : status === 'awaiting'
-    ? `<div style="display:flex;gap:4px"><button class="btn btn-ghost" style="font-size:11px;padding:4px 8px" onclick="openEstimateBuilder('${num}')">View</button><button class="btn btn-primary" style="font-size:11px;padding:4px 8px" onclick="sendEstimate('${num}','${client}')">Resend</button></div>`
-    : `<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px" onclick="convertToJob('${num}','${client}')">→ Job</button>`;
+    ? `<div style="display:flex;gap:4px"><button class="btn btn-ghost" style="font-size:11px;padding:4px 8px" onclick="openEstimateBuilder('${escAttr(num)}')">View</button><button class="btn btn-primary" style="font-size:11px;padding:4px 8px" onclick="sendEstimate('${escAttr(num)}','${escAttr(client)}')">Resend</button></div>`
+    : `<button class="btn btn-ghost" style="font-size:11px;padding:4px 8px" onclick="convertToJob('${escAttr(num)}','${escAttr(client)}')">→ Job</button>`;
   const tr = document.createElement('tr');
   tr.dataset.status = status;
   tr.dataset.loc = estLoc;
-  tr.innerHTML = `<td><strong style="cursor:pointer;color:var(--accent)" onclick="openEstimateBuilder('${num}')">${num}</strong></td><td>${client}</td><td>${desc}</td><td style="font-variant-numeric:tabular-nums">${totalStr}</td><td>${fmtShortDate()}</td><td>${fmtShortDate(30)}</td><td>${chip}</td><td>${actions}</td>`;
+  tr.innerHTML = `<td><strong style="cursor:pointer;color:var(--accent)" onclick="openEstimateBuilder('${escAttr(num)}')">${escHtml(num)}</strong></td><td>${escHtml(client)}</td><td>${escHtml(desc)}</td><td style="font-variant-numeric:tabular-nums">${totalStr}</td><td>${fmtShortDate()}</td><td>${fmtShortDate(30)}</td><td>${chip}</td><td>${actions}</td>`;
   tbody.insertBefore(tr, tbody.firstChild);
   refreshEstPipeline();
 }
@@ -4073,7 +4165,7 @@ function previewClientEstimate() {
     const rowTotal = qty * price; sub += rowTotal;
     const tr = document.createElement('tr');
     tr.style.borderBottom = '1px solid var(--border)';
-    tr.innerHTML = `<td style="padding:10px 0;font-size:13px">${desc}</td><td style="padding:10px 0;font-size:13px;text-align:right">${qty}</td><td style="padding:10px 0;font-size:13px;text-align:right">$${price.toFixed(2)}</td><td style="padding:10px 0;font-size:13px;text-align:right;font-variant-numeric:tabular-nums">$${rowTotal.toFixed(2)}</td>`;
+    tr.innerHTML = `<td style="padding:10px 0;font-size:13px">${escHtml(desc)}</td><td style="padding:10px 0;font-size:13px;text-align:right">${qty}</td><td style="padding:10px 0;font-size:13px;text-align:right">$${price.toFixed(2)}</td><td style="padding:10px 0;font-size:13px;text-align:right;font-variant-numeric:tabular-nums">$${rowTotal.toFixed(2)}</td>`;
     tbody.appendChild(tr);
   });
   const tax = sub * 0.08;
@@ -4139,7 +4231,7 @@ function createJob(desc, client, tech, dateStr, valueStr, notes, loc) {
     tr.dataset.status = 'scheduled';
     tr.dataset.loc = jobLoc;
     tr.dataset.search = `${num.toLowerCase()} ${desc.toLowerCase()} ${client.toLowerCase()} ${(tech || '').toLowerCase()}`;
-    tr.innerHTML = `<td><strong style="cursor:pointer;color:var(--accent)" onclick="openJobDetail('${num}')">${num}</strong></td><td>${desc}</td><td>${client}</td><td>${tech || '—'}</td><td>${fmtShortDate()}</td><td style="font-variant-numeric:tabular-nums">${valueStr || '—'}</td><td><span class="chip chip-yellow">Scheduled</span></td><td><button class="btn btn-ghost" style="font-size:11px;padding:4px 8px" onclick="openJobDetail('${num}')">Open →</button></td>`;
+    tr.innerHTML = `<td><strong style="cursor:pointer;color:var(--accent)" onclick="openJobDetail('${escAttr(num)}')">${escHtml(num)}</strong></td><td>${escHtml(desc)}</td><td>${escHtml(client)}</td><td>${tech ? escHtml(tech) : '—'}</td><td>${fmtShortDate()}</td><td style="font-variant-numeric:tabular-nums">${valueStr ? escHtml(valueStr) : '—'}</td><td><span class="chip chip-yellow">Scheduled</span></td><td><button class="btn btn-ghost" style="font-size:11px;padding:4px 8px" onclick="openJobDetail('${escAttr(num)}')">Open →</button></td>`;
     tbody.insertBefore(tr, tbody.firstChild);
   }
   logAction('job', { desc, client, tech, dateStr, valueStr, notes, loc: jobLoc });
@@ -4258,7 +4350,7 @@ function renderPortalPhotos() {
   if (!photos.length) { el.innerHTML = portalMuted('No photos shared yet.'); return; }
   el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${
     photos.map(p => `<div style="aspect-ratio:1;border-radius:8px;background:${p.color}22;border:1px solid ${p.color}44;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px">
-      <div style="font-size:22px">📷</div><div style="font-size:9px;color:var(--text-secondary);text-align:center;margin-top:4px;line-height:1.3">${p.label}</div></div>`).join('')
+      <div style="font-size:22px">📷</div><div style="font-size:9px;color:var(--text-secondary);text-align:center;margin-top:4px;line-height:1.3">${escHtml(p.label)}</div></div>`).join('')
   }</div>`;
 }
 
@@ -4276,7 +4368,7 @@ function renderPortalCOs() {
       : '';
     return `<div style="padding:12px 0;border-bottom:1px solid var(--border)">
        <div style="display:flex;align-items:center;gap:8px">
-         <span style="flex:1;font-size:14px;color:var(--text-primary)">${co.desc}</span>
+         <span style="flex:1;font-size:14px;color:var(--text-primary)">${escHtml(co.desc)}</span>
          <span style="font-variant-numeric:tabular-nums;font-weight:600">${catMoney(co.amount)}</span>
          ${coStatusChip(co.status)}
        </div>${actions}</div>`;
@@ -4301,11 +4393,11 @@ function renderPortalBilling() {
         : '';
       return `<div style="padding:12px 0;border-bottom:1px solid var(--border)">
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="flex:1;font-weight:600">${inv.num}</span>
+          <span style="flex:1;font-weight:600">${escHtml(inv.num)}</span>
           <span style="font-variant-numeric:tabular-nums">${catMoney(inv.total)}</span>
           <span class="chip ${chipClass}">${label}</span>
         </div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Paid ${catMoney(inv.paid || 0)} · Due ${inv.due}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Paid ${catMoney(inv.paid || 0)} · Due ${escHtml(inv.due)}</div>
         ${pay}</div>`;
     }).join('');
 }
@@ -4391,9 +4483,9 @@ function renderLocPickerItems() {
     const isActive = loc.id === activeLocId;
     div.style.cssText = `display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:${isActive ? 'var(--accent-light)' : 'transparent'};transition:background .1s`;
     div.innerHTML = `
-      <div style="width:28px;height:28px;border-radius:7px;background:${loc.color};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0">${loc.short}</div>
+      <div style="width:28px;height:28px;border-radius:7px;background:${loc.color};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0">${escHtml(loc.short)}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:${isActive ? 600 : 400};color:${isActive ? 'var(--accent)' : 'var(--text-primary)'}">${loc.name}</div>
+        <div style="font-size:13px;font-weight:${isActive ? 600 : 400};color:${isActive ? 'var(--accent)' : 'var(--text-primary)'}">${escHtml(loc.name)}</div>
         <div style="font-size:11px;color:var(--text-muted)">${loc.status === 'opening' ? '🔜 Coming soon' : loc.techs.length + ' techs · ' + loc.activeJobs + ' active jobs'}</div>
       </div>
       ${isActive ? '<svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 7l3.5 3.5L12 3.5" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" fill="none"/></svg>' : ''}
@@ -4535,16 +4627,16 @@ function seedBranchData() {
         <div class="status-stripe ${stripe}"></div>
         <div style="padding-left:8px">
           <div class="worker-card-header">
-            <div class="worker-avatar" style="background:${color}">${initials}</div>
-            <div><div class="worker-name">${name}</div><div class="worker-role">${role}</div></div>
-            <span class="chip ${chipClass}" style="margin-left:auto">${chip}</span>
+            <div class="worker-avatar" style="background:${color}">${escHtml(initials)}</div>
+            <div><div class="worker-name">${escHtml(name)}</div><div class="worker-role">${escHtml(role)}</div></div>
+            <span class="chip ${chipClass}" style="margin-left:auto">${escHtml(chip)}</span>
           </div>
           <div class="worker-meta">
-            <div class="worker-meta-row"><span class="worker-meta-label">Current Job</span><span class="worker-meta-val">${job}</span></div>
-            <div class="worker-meta-row"><span class="worker-meta-label">Hours Today</span><span class="worker-meta-val">${hoursToday}</span></div>
-            <div class="worker-meta-row"><span class="worker-meta-label">Hours This Week</span><span class="worker-meta-val">${hoursWeek}</span></div>
+            <div class="worker-meta-row"><span class="worker-meta-label">Current Job</span><span class="worker-meta-val">${escHtml(job)}</span></div>
+            <div class="worker-meta-row"><span class="worker-meta-label">Hours Today</span><span class="worker-meta-val">${escHtml(hoursToday)}</span></div>
+            <div class="worker-meta-row"><span class="worker-meta-label">Hours This Week</span><span class="worker-meta-val">${escHtml(hoursWeek)}</span></div>
           </div>
-          <button class="clock-btn" style="background:var(--surface2);color:var(--text-muted);border:1px solid var(--border)" onclick="openAssignModal('${initials}','${name}')">+ Assign Job</button>
+          <button class="clock-btn" style="background:var(--surface2);color:var(--text-muted);border:1px solid var(--border)" onclick="openAssignModal('${escAttr(initials)}','${escAttr(name)}')">+ Assign Job</button>
         </div>`;
       grid.insertBefore(card, dashed || null);
     };
@@ -4746,10 +4838,10 @@ function renderLocCards() {
     card.innerHTML = `
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px">
         <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:38px;height:38px;border-radius:10px;background:${loc.color};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;flex-shrink:0">${loc.short}</div>
+          <div style="width:38px;height:38px;border-radius:10px;background:${loc.color};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;flex-shrink:0">${escHtml(loc.short)}</div>
           <div>
-            <div style="font-weight:700;font-size:15px">${loc.name}</div>
-            <div style="font-size:12px;color:var(--text-muted);margin-top:1px">${loc.manager}</div>
+            <div style="font-weight:700;font-size:15px">${escHtml(loc.name)}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:1px">${escHtml(loc.manager)}</div>
           </div>
         </div>
         <span class="chip ${isOpening ? 'chip-yellow' : 'chip-green'}" style="font-size:11px">${isOpening ? 'Opening Soon' : 'Active'}</span>
@@ -4757,13 +4849,13 @@ function renderLocCards() {
       ${isOpening ? `
         <div style="padding:16px;background:var(--surface2);border-radius:8px;text-align:center">
           <div style="font-size:13px;color:var(--text-muted)">Launching soon</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">📍 ${loc.addr}</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">📞 ${loc.phone}${loc.email && loc.email !== '—' ? ' · ✉️ ' + loc.email : ''}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">📍 ${escHtml(loc.addr)}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">📞 ${escHtml(loc.phone)}${loc.email && loc.email !== '—' ? ' · ✉️ ' + escHtml(loc.email) : ''}</div>
           <button class="btn btn-primary" style="margin-top:12px;font-size:12px" onclick="event.stopPropagation();beginLocationSetup('${loc.id}')">Begin Setup</button>
         </div>
       ` : `
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">📍 ${loc.addr}</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px">📞 ${loc.phone}${loc.email && loc.email !== '—' ? ' · ✉️ ' + loc.email : ''}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">📍 ${escHtml(loc.addr)}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px">📞 ${escHtml(loc.phone)}${loc.email && loc.email !== '—' ? ' · ✉️ ' + escHtml(loc.email) : ''}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
           <div style="padding:10px;background:var(--surface2);border-radius:8px;text-align:center">
             <div style="font-size:18px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums">$${(loc.revenueMTD/1000).toFixed(0)}k</div>
@@ -4777,7 +4869,7 @@ function renderLocCards() {
         <div style="display:flex;align-items:center;justify-content:space-between;font-size:13px;margin-bottom:10px">
           <span style="color:var(--text-muted)">Techs on site</span>
           <div style="display:flex;gap:-4px">
-            ${loc.techs.slice(0,3).map((t,i) => `<div class="avatar" style="width:24px;height:24px;font-size:9px;background:${['#2563EB','#16A34A','#7C3AED'][i%3]};margin-left:${i>0?'-6px':'0'};border:2px solid var(--surface)">${t.split(' ').map(x=>x[0]).join('')}</div>`).join('')}
+            ${loc.techs.slice(0,3).map((t,i) => `<div class="avatar" style="width:24px;height:24px;font-size:9px;background:${['#2563EB','#16A34A','#7C3AED'][i%3]};margin-left:${i>0?'-6px':'0'};border:2px solid var(--surface)">${escHtml(t.split(' ').map(x=>x[0]).join(''))}</div>`).join('')}
             ${loc.techs.length > 3 ? `<div class="avatar" style="width:24px;height:24px;font-size:9px;background:var(--border);color:var(--text-secondary);margin-left:-6px;border:2px solid var(--surface)">+${loc.techs.length-3}</div>` : ''}
           </div>
         </div>
@@ -4841,14 +4933,14 @@ function renderLocCompTable(period) {
     tr.innerHTML = `
       <td>
         <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:30px;height:30px;border-radius:8px;background:${loc.color};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex-shrink:0">${loc.short}</div>
+          <div style="width:30px;height:30px;border-radius:8px;background:${loc.color};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex-shrink:0">${escHtml(loc.short)}</div>
           <div>
-            <div style="font-weight:600;font-size:13px">${loc.name}</div>
+            <div style="font-weight:600;font-size:13px">${escHtml(loc.name)}</div>
             <div style="font-size:11px;color:var(--text-muted)">${loc.addr.split(',')[1]?.trim() || ''}</div>
           </div>
         </div>
       </td>
-      <td style="font-size:13px">${loc.manager}</td>
+      <td style="font-size:13px">${escHtml(loc.manager)}</td>
       <td style="font-variant-numeric:tabular-nums;font-weight:600">${row.activeJobs}</td>
       <td>
         <div style="display:flex;align-items:center;gap:6px">
@@ -4971,7 +5063,7 @@ function openClientProfile(id) {
       const color = expired ? 'var(--red)' : nearExpiry ? 'var(--yellow)' : 'var(--green)';
       const chipClass = expired ? 'chip-red' : nearExpiry ? 'chip-yellow' : 'chip-green';
       const label = expired ? 'Expired' : nearExpiry ? daysLeft + 'd left' : 'Active';
-      return `<div style="padding:8px 10px;background:var(--surface2);border-radius:7px;border-left:3px solid ${color}"><div style="font-size:12px;font-weight:600;color:var(--text-primary)">${w.item}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${w.type}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span style="font-size:11px;color:var(--text-muted)">Exp: ${w.expires.split(', ')[0]}</span><span class="chip ${chipClass}" style="font-size:10px">${label}</span></div></div>`;
+      return `<div style="padding:8px 10px;background:var(--surface2);border-radius:7px;border-left:3px solid ${color}"><div style="font-size:12px;font-weight:600;color:var(--text-primary)">${escHtml(w.item)}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${escHtml(w.type)}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span style="font-size:11px;color:var(--text-muted)">Exp: ${escHtml(w.expires.split(', ')[0])}</span><span class="chip ${chipClass}" style="font-size:10px">${label}</span></div></div>`;
     }).join('');
   } else {
     wList.innerHTML = '<div style="font-size:13px;color:var(--text-muted)">No warranties on file</div>';
@@ -5001,13 +5093,13 @@ function openQuickModal(title, fields, saveLabel, onSubmit) {
     wrap.className = 'form-group';
     let control;
     if (f.type === 'select') {
-      control = `<select class="form-select" id="qm-f${i}">${f.options.map(o => `<option${f.value != null && o === f.value ? ' selected' : ''}>${o}</option>`).join('')}</select>`;
+      control = `<select class="form-select" id="qm-f${i}">${f.options.map(o => `<option${f.value != null && o === f.value ? ' selected' : ''}>${escHtml(o)}</option>`).join('')}</select>`;
     } else if (f.type === 'textarea') {
-      control = `<textarea class="form-input" id="qm-f${i}" rows="4" placeholder="${f.placeholder || ''}" style="resize:vertical;min-height:80px"></textarea>`;
+      control = `<textarea class="form-input" id="qm-f${i}" rows="4" placeholder="${escAttr(f.placeholder || '')}" style="resize:vertical;min-height:80px"></textarea>`;
     } else {
-      control = `<input class="form-input" id="qm-f${i}" type="${f.type || 'text'}" placeholder="${f.placeholder || ''}" value="${f.value || ''}"/>`;
+      control = `<input class="form-input" id="qm-f${i}" type="${f.type || 'text'}" placeholder="${escAttr(f.placeholder || '')}" value="${escAttr(f.value || '')}"/>`;
     }
-    wrap.innerHTML = `<label class="form-label">${f.label}</label>${control}`;
+    wrap.innerHTML = `<label class="form-label">${escHtml(f.label)}</label>${control}`;
     body.appendChild(wrap);
   });
   qmCallback = () => onSubmit(fields.map((_, i) => document.getElementById('qm-f' + i).value.trim()));
@@ -5054,7 +5146,7 @@ function insertClient(p) {
   if (tbody) {
     const tr = document.createElement('tr');
     tr.dataset.search = name.toLowerCase();
-    tr.innerHTML = `<td><strong style="cursor:pointer;color:var(--accent)" onclick="openClientProfile('${id}')">${name}</strong></td><td>${phone}</td><td>${email || '—'}</td><td>0</td><td style="font-variant-numeric:tabular-nums">$0</td><td>—</td><td><span class="chip ${isCommercial ? 'chip-blue' : 'chip-green'}">${isCommercial ? type : 'Active'}</span></td><td><button class="btn btn-ghost" style="font-size:11px;padding:3px 7px" onclick="openClientProfile('${id}')">Profile →</button></td>`;
+    tr.innerHTML = `<td><strong style="cursor:pointer;color:var(--accent)" onclick="openClientProfile('${id}')">${escHtml(name)}</strong></td><td>${escHtml(phone)}</td><td>${email ? escHtml(email) : '—'}</td><td>0</td><td style="font-variant-numeric:tabular-nums">$0</td><td>—</td><td><span class="chip ${isCommercial ? 'chip-blue' : 'chip-green'}">${isCommercial ? type : 'Active'}</span></td><td><button class="btn btn-ghost" style="font-size:11px;padding:3px 7px" onclick="openClientProfile('${id}')">Profile →</button></td>`;
     tbody.insertBefore(tr, tbody.firstChild);
     const title = document.querySelector('#page-clients .card-title');
     if (title) {
@@ -5141,7 +5233,7 @@ function renderClientTab(tab) {
     table.innerHTML = `<table><thead><tr><th>Job #</th><th>Description</th><th>Tech</th><th>Date</th><th>Value</th><th>Status</th></tr></thead><tbody>${
       c.serviceHistory.map(j => {
         const sc = j.status === 'Completed' ? 'chip-green' : j.status === 'In Progress' ? 'chip-blue' : j.status === 'Scheduled' ? 'chip-yellow' : 'chip-red';
-        return `<tr><td><strong style="color:var(--accent);cursor:pointer" onclick="openJobDetail('${j.job}')">${j.job}</strong></td><td>${j.desc}</td><td>${j.tech}</td><td>${j.date}</td><td style="font-variant-numeric:tabular-nums">${j.value}</td><td><span class="chip ${sc}">${j.status}</span></td></tr>`;
+        return `<tr><td><strong style="color:var(--accent);cursor:pointer" onclick="openJobDetail('${escAttr(j.job)}')">${escHtml(j.job)}</strong></td><td>${escHtml(j.desc)}</td><td>${escHtml(j.tech)}</td><td>${escHtml(j.date)}</td><td style="font-variant-numeric:tabular-nums">${escHtml(j.value)}</td><td><span class="chip ${sc}">${j.status}</span></td></tr>`;
       }).join('')
     }</tbody></table>`;
     container.appendChild(table);
@@ -5152,7 +5244,7 @@ function renderClientTab(tab) {
     table.innerHTML = `<table><thead><tr><th>Invoice #</th><th>Amount</th><th>Due</th><th>Status</th></tr></thead><tbody>${
       c.invoices.map(i => {
         const sc = i.status === 'Paid' ? 'chip-green' : i.status === 'Overdue' ? 'chip-red' : i.status === 'Draft' ? 'chip-blue' : 'chip-yellow';
-        return `<tr><td><strong style="color:var(--accent);cursor:pointer" onclick="openInvoiceDetail('${i.num}')">${i.num}</strong></td><td style="font-variant-numeric:tabular-nums">${i.amount}</td><td>${i.due}</td><td><span class="chip ${sc}">${i.status}</span></td></tr>`;
+        return `<tr><td><strong style="color:var(--accent);cursor:pointer" onclick="openInvoiceDetail('${escAttr(i.num)}')">${escHtml(i.num)}</strong></td><td style="font-variant-numeric:tabular-nums">${escHtml(i.amount)}</td><td>${escHtml(i.due)}</td><td><span class="chip ${sc}">${i.status}</span></td></tr>`;
       }).join('')
     }</tbody></table>`;
     container.appendChild(table);
@@ -5162,7 +5254,7 @@ function renderClientTab(tab) {
       const sc = p.status === 'Approved' || p.status === 'Closed' ? 'chip-green' : p.status === 'Pending' ? 'chip-yellow' : 'chip-blue';
       const div = document.createElement('div');
       div.style.cssText = 'padding:12px 14px;background:var(--surface2);border-radius:8px;margin-bottom:8px';
-      div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-weight:600;font-size:13px">${p.desc}</div><div style="font-size:12px;color:var(--text-muted);margin-top:3px">Permit: <strong>${p.num}</strong> · Filed: ${p.filed}</div><div style="font-size:12px;color:var(--text-muted)">Inspector: ${p.inspector}</div></div><span class="chip ${sc}">${p.status}</span></div>`;
+      div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-weight:600;font-size:13px">${escHtml(p.desc)}</div><div style="font-size:12px;color:var(--text-muted);margin-top:3px">Permit: <strong>${escHtml(p.num)}</strong> · Filed: ${escHtml(p.filed)}</div><div style="font-size:12px;color:var(--text-muted)">Inspector: ${escHtml(p.inspector)}</div></div><span class="chip ${sc}">${p.status}</span></div>`;
       container.appendChild(div);
     });
   } else if (tab === 'notes') {
@@ -5170,7 +5262,7 @@ function renderClientTab(tab) {
     c.notes.forEach(n => {
       const div = document.createElement('div');
       div.style.cssText = 'padding:12px 14px;background:var(--surface2);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--accent)';
-      div.innerHTML = `<div style="font-size:13px;line-height:1.6;color:var(--text-primary)">${n.text}</div><div style="font-size:11px;color:var(--text-muted);margin-top:6px">${n.author} · ${n.date}</div>`;
+      div.innerHTML = `<div style="font-size:13px;line-height:1.6;color:var(--text-primary)">${escHtml(n.text)}</div><div style="font-size:11px;color:var(--text-muted);margin-top:6px">${escHtml(n.author)} · ${escHtml(n.date)}</div>`;
       container.appendChild(div);
     });
   }
@@ -5293,10 +5385,10 @@ function insertWorkerCard(p) {
         <div class="status-stripe" style="background:var(--border)"></div>
         <div style="padding-left:8px">
           <div class="worker-card-header">
-            <div class="worker-avatar" style="background:${color}">${initials}</div>
+            <div class="worker-avatar" style="background:${color}">${escHtml(initials)}</div>
             <div>
-              <div class="worker-name">${name}</div>
-              <div class="worker-role">${role}</div>
+              <div class="worker-name">${escHtml(name)}</div>
+              <div class="worker-role">${escHtml(role)}</div>
             </div>
             <span class="chip chip-gray" style="margin-left:auto">Off Today</span>
           </div>
@@ -5305,7 +5397,7 @@ function insertWorkerCard(p) {
             <div class="worker-meta-row"><span class="worker-meta-label">Hours Today</span><span class="worker-meta-val">0h</span></div>
             <div class="worker-meta-row"><span class="worker-meta-label">Hours This Week</span><span class="worker-meta-val">0h</span></div>
           </div>
-          <button class="clock-btn" style="background:var(--surface2);color:var(--text-muted);border:1px solid var(--border)" onclick="openAssignModal('${initials}','${name}')">+ Assign Job</button>
+          <button class="clock-btn" style="background:var(--surface2);color:var(--text-muted);border:1px solid var(--border)" onclick="openAssignModal('${escAttr(initials)}','${escAttr(name)}')">+ Assign Job</button>
         </div>`;
     grid.insertBefore(card, dashed || null);
   }
@@ -5325,7 +5417,7 @@ function renderCompliance() {
       const div = document.createElement('div');
       div.className = 'permit-row';
       div.style.cssText = 'display:grid;grid-template-columns:1fr 90px 80px 90px;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);font-size:13px;align-items:center';
-      div.innerHTML = `<div><div style="font-weight:500">${p.desc}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${p.client} · ${p.job}</div></div><span style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono)">${p.num}</span><span style="font-size:12px;color:var(--text-muted)">${p.filed.split(', ')[0]}</span><div style="display:flex;align-items:center;gap:6px"><span class="chip ${sc}" style="font-size:11px">${p.status}</span><button class="btn btn-ghost" style="font-size:10px;padding:2px 6px" onclick="toast('Inspector ${p.inspector} notified')">Notify</button></div>`;
+      div.innerHTML = `<div><div style="font-weight:500">${escHtml(p.desc)}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${escHtml(p.client)} · ${escHtml(p.job)}</div></div><span style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono)">${escHtml(p.num)}</span><span style="font-size:12px;color:var(--text-muted)">${escHtml(p.filed.split(', ')[0])}</span><div style="display:flex;align-items:center;gap:6px"><span class="chip ${sc}" style="font-size:11px">${p.status}</span><button class="btn btn-ghost" style="font-size:10px;padding:2px 6px" onclick="toast('Inspector ${escAttr(p.inspector)} notified')">Notify</button></div>`;
       pList.appendChild(div);
     });
   }
@@ -5345,7 +5437,7 @@ function renderCompliance() {
       const div = document.createElement('div');
       div.className = 'warranty-row';
       div.style.cssText = 'display:grid;grid-template-columns:1fr 80px 80px 70px;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);font-size:13px;align-items:center';
-      div.innerHTML = `<div><div style="font-weight:500">${w.item}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${w.client} · ${w.type}</div></div><span style="font-size:12px;color:var(--text-muted)">${w.issued.split(', ')[0]}</span><span style="font-size:12px;color:${expired?'var(--red)':near?'var(--yellow)':'var(--text-muted)'}">${w.expires.split(', ')[0]}</span><span class="chip ${sc}" style="font-size:11px">${label}</span>`;
+      div.innerHTML = `<div><div style="font-weight:500">${escHtml(w.item)}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${escHtml(w.client)} · ${escHtml(w.type)}</div></div><span style="font-size:12px;color:var(--text-muted)">${escHtml(w.issued.split(', ')[0])}</span><span style="font-size:12px;color:${expired?'var(--red)':near?'var(--yellow)':'var(--text-muted)'}">${escHtml(w.expires.split(', ')[0])}</span><span class="chip ${sc}" style="font-size:11px">${label}</span>`;
       wList.appendChild(div);
     });
   }
@@ -5490,8 +5582,8 @@ function renderCatalogPicker(search, cat) {
     const price = catalogClientPrice(it);
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface2)" onclick="addCatalogToEst('${it.id}')">
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600">${it.name}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px"><span class="chip chip-gray" style="font-size:10px">${it.cat}</span> · ${catMoney(price)} / ${it.unit}</div>
+        <div style="font-size:13px;font-weight:600">${escHtml(it.name)}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px"><span class="chip chip-gray" style="font-size:10px">${escHtml(it.cat)}</span> · ${catMoney(price)} / ${escHtml(it.unit)}</div>
       </div>
       <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();addCatalogToEst('${it.id}')">+ Add</button>
     </div>`;
@@ -5511,9 +5603,9 @@ function renderCostCatalog() {
   if (!tbody) return;
   tbody.innerHTML = COST_CATALOG.map(it => `
     <tr>
-      <td><strong>${it.name}</strong></td>
-      <td><span class="chip chip-gray" style="font-size:11px">${it.cat}</span></td>
-      <td>${it.unit}</td>
+      <td><strong>${escHtml(it.name)}</strong></td>
+      <td><span class="chip chip-gray" style="font-size:11px">${escHtml(it.cat)}</span></td>
+      <td>${escHtml(it.unit)}</td>
       <td style="font-variant-numeric:tabular-nums">${catMoney(it.cost)}</td>
       <td style="font-variant-numeric:tabular-nums">${it.markup}%</td>
       <td style="font-variant-numeric:tabular-nums;font-weight:600">${catMoney(catalogClientPrice(it))}</td>
@@ -5642,17 +5734,17 @@ function renderInvoiceList(filter) {
     const balance = inv.total - (inv.paid || 0);
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong style="cursor:pointer;color:var(--accent)" onclick="openInvoiceDetail('${inv.num}')">${inv.num}</strong></td>
-      <td>${inv.client}</td>
-      <td style="color:var(--text-muted);font-size:12px">${inv.job}</td>
+      <td><strong style="cursor:pointer;color:var(--accent)" onclick="openInvoiceDetail('${escAttr(inv.num)}')">${escHtml(inv.num)}</strong></td>
+      <td>${escHtml(inv.client)}</td>
+      <td style="color:var(--text-muted);font-size:12px">${escHtml(inv.job)}</td>
       <td style="font-variant-numeric:tabular-nums">$${inv.total.toLocaleString()}</td>
-      <td style="color:var(--text-muted);font-size:12px">${inv.issued}</td>
-      <td style="color:${inv.status==='overdue'?'var(--red)':'var(--text-secondary)'};font-size:12px;font-weight:${inv.status==='overdue'?600:400}">${inv.due}</td>
+      <td style="color:var(--text-muted);font-size:12px">${escHtml(inv.issued)}</td>
+      <td style="color:${inv.status==='overdue'?'var(--red)':'var(--text-secondary)'};font-size:12px;font-weight:${inv.status==='overdue'?600:400}">${escHtml(inv.due)}</td>
       <td><span class="chip ${chipClass}">${label}</span></td>
       <td><div style="display:flex;gap:4px">
-        <button class="btn btn-ghost" style="font-size:11px;padding:3px 7px" onclick="openInvoiceDetail('${inv.num}')">View</button>
-        ${inv.status !== 'paid' ? `<button class="btn btn-primary" style="font-size:11px;padding:3px 7px" onclick="quickPay('${inv.num}')">Pay</button>` : ''}
-        ${inv.status === 'overdue' ? `<button class="btn btn-ghost" style="font-size:11px;padding:3px 7px;color:var(--yellow-text)" onclick="sendReminderFor('${inv.num}','${inv.client}')">Remind</button>` : ''}
+        <button class="btn btn-ghost" style="font-size:11px;padding:3px 7px" onclick="openInvoiceDetail('${escAttr(inv.num)}')">View</button>
+        ${inv.status !== 'paid' ? `<button class="btn btn-primary" style="font-size:11px;padding:3px 7px" onclick="quickPay('${escAttr(inv.num)}')">Pay</button>` : ''}
+        ${inv.status === 'overdue' ? `<button class="btn btn-ghost" style="font-size:11px;padding:3px 7px;color:var(--yellow-text)" onclick="sendReminderFor('${escAttr(inv.num)}','${escAttr(inv.client)}')">Remind</button>` : ''}
       </div></td>
     `;
     tbody.appendChild(tr);
@@ -5706,7 +5798,7 @@ function openInvoiceDetail(num) {
     const total = qty * unit; sub += total;
     const tr = document.createElement('tr');
     tr.style.borderBottom = '1px solid var(--border)';
-    tr.innerHTML = `<td style="padding:10px 0;font-size:13px">${desc}</td><td style="padding:10px 0;font-size:13px;text-align:right;font-variant-numeric:tabular-nums">${qty}</td><td style="padding:10px 0;font-size:13px;text-align:right;font-variant-numeric:tabular-nums">$${unit.toFixed(2)}</td><td style="padding:10px 0;font-size:13px;text-align:right;font-variant-numeric:tabular-nums">$${total.toFixed(2)}</td>`;
+    tr.innerHTML = `<td style="padding:10px 0;font-size:13px">${escHtml(desc)}</td><td style="padding:10px 0;font-size:13px;text-align:right;font-variant-numeric:tabular-nums">${qty}</td><td style="padding:10px 0;font-size:13px;text-align:right;font-variant-numeric:tabular-nums">$${unit.toFixed(2)}</td><td style="padding:10px 0;font-size:13px;text-align:right;font-variant-numeric:tabular-nums">$${total.toFixed(2)}</td>`;
     tbody.appendChild(tr);
   });
   const tax = sub * 0.08;
@@ -5737,7 +5829,7 @@ function renderPaymentHistory(num) {
   payments.forEach(p => {
     const div = document.createElement('div');
     div.style.cssText = 'padding:10px 12px;background:var(--green-bg);border-radius:8px;border-left:3px solid var(--green)';
-    div.innerHTML = `<div style="display:flex;justify-content:space-between"><span style="font-weight:600;color:var(--green-text);font-variant-numeric:tabular-nums">$${p.amount.toFixed(2)}</span><span style="font-size:12px;color:var(--text-muted)">${p.date}</span></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${p.method}${p.ref ? ' · ' + p.ref : ''}</div>`;
+    div.innerHTML = `<div style="display:flex;justify-content:space-between"><span style="font-weight:600;color:var(--green-text);font-variant-numeric:tabular-nums">$${p.amount.toFixed(2)}</span><span style="font-size:12px;color:var(--text-muted)">${escHtml(p.date)}</span></div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${escHtml(p.method)}${p.ref ? ' · ' + escHtml(p.ref) : ''}</div>`;
     container.appendChild(div);
   });
 }
@@ -5750,7 +5842,7 @@ function renderInvoiceTimeline(num) {
     const isLast = i === entries.length - 1;
     const div = document.createElement('div');
     div.style.cssText = 'display:flex;gap:10px;align-items:flex-start;padding-bottom:10px';
-    div.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0"><div style="width:26px;height:26px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px">${e.icon}</div>${!isLast?'<div style="width:1px;flex:1;min-height:8px;background:var(--border);margin-top:3px"></div>':''}</div><div style="padding-top:3px"><div style="font-size:13px;color:var(--text-primary)">${e.text}</div><div style="font-size:11px;color:var(--text-muted);margin-top:1px">${e.time}</div></div>`;
+    div.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0"><div style="width:26px;height:26px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px">${escHtml(e.icon)}</div>${!isLast?'<div style="width:1px;flex:1;min-height:8px;background:var(--border);margin-top:3px"></div>':''}</div><div style="padding-top:3px"><div style="font-size:13px;color:var(--text-primary)">${escHtml(e.text)}</div><div style="font-size:11px;color:var(--text-muted);margin-top:1px">${escHtml(e.time)}</div></div>`;
     container.appendChild(div);
   });
 }
@@ -5867,7 +5959,7 @@ function addInvLine(desc, qty, price) {
   tr.id = 'invb-row-' + id;
   tr.style.borderBottom = '1px solid var(--border)';
   const total = ((qty||1) * (price||0)).toFixed(2);
-  tr.innerHTML = `<td style="padding:5px 3px"><input class="form-input" style="padding:4px 7px;font-size:13px" value="${desc||''}" placeholder="Description" oninput="recalcInv()"/></td><td style="padding:5px 3px"><input class="form-input" style="padding:4px 7px;font-size:13px;text-align:right" type="number" min="0" value="${qty||1}" oninput="recalcInv()"/></td><td style="padding:5px 3px"><input class="form-input" style="padding:4px 7px;font-size:13px;text-align:right" type="number" min="0" step="0.01" value="${price||0}" oninput="recalcInv()"/></td><td style="padding:5px 3px 5px 8px;text-align:right;font-size:13px;font-variant-numeric:tabular-nums" id="invb-rt-${id}">$${total}</td><td style="padding:5px 3px;text-align:center"><button onclick="removeInvLine(${id})" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px">×</button></td>`;
+  tr.innerHTML = `<td style="padding:5px 3px"><input class="form-input" style="padding:4px 7px;font-size:13px" value="${desc?escAttr(desc):''}" placeholder="Description" oninput="recalcInv()"/></td><td style="padding:5px 3px"><input class="form-input" style="padding:4px 7px;font-size:13px;text-align:right" type="number" min="0" value="${qty||1}" oninput="recalcInv()"/></td><td style="padding:5px 3px"><input class="form-input" style="padding:4px 7px;font-size:13px;text-align:right" type="number" min="0" step="0.01" value="${price||0}" oninput="recalcInv()"/></td><td style="padding:5px 3px 5px 8px;text-align:right;font-size:13px;font-variant-numeric:tabular-nums" id="invb-rt-${id}">$${total}</td><td style="padding:5px 3px;text-align:center"><button onclick="removeInvLine(${id})" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px">×</button></td>`;
   tbody.appendChild(tr);
   recalcInv();
 }
@@ -6015,17 +6107,17 @@ function renderInventory(filter) {
     tr.dataset.cat = item.cat;
     tr.dataset.low = isLow ? '1' : '0';
     tr.innerHTML = `
-      <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${item.sku}</span></td>
-      <td><strong style="font-weight:500">${item.desc}</strong></td>
-      <td><span class="chip chip-gray" style="font-size:11px">${item.cat}</span></td>
+      <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${escHtml(item.sku)}</span></td>
+      <td><strong style="font-weight:500">${escHtml(item.desc)}</strong></td>
+      <td><span class="chip chip-gray" style="font-size:11px">${escHtml(item.cat)}</span></td>
       <td style="font-variant-numeric:tabular-nums">$${item.cost.toFixed(2)}</td>
       <td style="font-variant-numeric:tabular-nums;font-weight:600;color:${isLow ? 'var(--red)' : 'var(--text-primary)'}">${item.stock}</td>
       <td style="font-variant-numeric:tabular-nums;color:var(--text-muted)">${item.reorder}</td>
       <td>${statusHtml}</td>
       <td><div style="display:flex;gap:4px">
-        <button class="btn btn-ghost" style="font-size:11px;padding:3px 7px" onclick="adjustStock('${item.sku}',-1)">−</button>
-        <button class="btn btn-ghost" style="font-size:11px;padding:3px 7px" onclick="adjustStock('${item.sku}',1)">+</button>
-        <button class="btn btn-ghost" style="font-size:11px;padding:3px 7px" onclick="reorderPart('${item.sku}','${item.desc}')">Reorder</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:3px 7px" onclick="adjustStock('${escAttr(item.sku)}',-1)">−</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:3px 7px" onclick="adjustStock('${escAttr(item.sku)}',1)">+</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:3px 7px" onclick="reorderPart('${escAttr(item.sku)}','${escAttr(item.desc)}')">Reorder</button>
       </div></td>
     `;
     tbody.appendChild(tr);
@@ -6087,19 +6179,19 @@ function renderPartsRequests() {
     const div = document.createElement('div');
     div.style.cssText = 'padding:10px 12px;background:var(--surface2);border-radius:8px';
     const isPending = req.status === 'pending';
-    const poDesc = (req.sku + ' ' + req.desc + ' × ' + req.qty).replace(/'/g, "\\'");
+    const poDesc = escAttr(req.sku + ' ' + req.desc + ' × ' + req.qty);
     div.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <div style="min-width:0">
-          <div style="font-size:13px;font-weight:600">${req.sku} × ${req.qty}</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:1px">${req.desc}</div>
-          <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">${req.tech} · ${req.job}</div>
+          <div style="font-size:13px;font-weight:600">${escHtml(req.sku)} × ${escHtml(req.qty)}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:1px">${escHtml(req.desc)}</div>
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">${escHtml(req.tech)} · ${escHtml(req.job)}</div>
         </div>
         ${isPending
           ? `<div style="display:flex;gap:4px;flex-shrink:0"><button class="btn btn-primary" style="font-size:11px;padding:3px 8px" onclick="approveRequest(${i})">✓</button><button class="btn btn-ghost" style="font-size:11px;padding:3px 8px" onclick="denyRequest(${i})">✕</button></div>`
           : `<span class="chip chip-green" style="font-size:11px;flex-shrink:0">Approved</span>`}
       </div>
-      <div style="margin-top:6px;text-align:right"><button class="btn btn-ghost" style="font-size:11px;padding:2px 8px" onclick="openNewPOModal('${req.job}', '${poDesc}')">→ PO</button></div>
+      <div style="margin-top:6px;text-align:right"><button class="btn btn-ghost" style="font-size:11px;padding:2px 8px" onclick="openNewPOModal('${escAttr(req.job)}', '${poDesc}')">→ PO</button></div>
     `;
     container.appendChild(div);
   });
@@ -6129,9 +6221,9 @@ function renderVendors() {
     div.style.cssText = 'padding:10px 12px;background:var(--surface2);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:8px';
     div.innerHTML = `
       <div style="min-width:0">
-        <div style="font-size:13px;font-weight:600">${v.name}</div>
-        <div style="margin-top:3px"><span class="chip chip-blue" style="font-size:11px">${v.trade}</span></div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${v.phone}</div>
+        <div style="font-size:13px;font-weight:600">${escHtml(v.name)}</div>
+        <div style="margin-top:3px"><span class="chip chip-blue" style="font-size:11px">${escHtml(v.trade)}</span></div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${escHtml(v.phone)}</div>
       </div>
       <button class="btn btn-ghost" style="font-size:11px;padding:3px 8px;flex-shrink:0" onclick="openEditVendorModal('${v.id}')">Edit</button>
     `;
@@ -6197,16 +6289,16 @@ function renderPOs() {
   PURCHASE_ORDERS.forEach(po => {
     const st = PO_STATUS[po.status] || PO_STATUS.draft;
     const actionHtml = st.action
-      ? `<button class="btn btn-ghost" style="font-size:11px;padding:3px 8px" onclick="setPOStatus('${po.num}','${st.next}')">${st.action}</button>`
+      ? `<button class="btn btn-ghost" style="font-size:11px;padding:3px 8px" onclick="setPOStatus('${escAttr(po.num)}','${st.next}')">${st.action}</button>`
       : '<span style="color:var(--text-muted)">—</span>';
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${po.num}</span></td>
-      <td>${po.job}</td>
-      <td>${vendorName(po.vendorId)}</td>
-      <td>${po.desc}</td>
+      <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${escHtml(po.num)}</span></td>
+      <td>${escHtml(po.job)}</td>
+      <td>${escHtml(vendorName(po.vendorId))}</td>
+      <td>${escHtml(po.desc)}</td>
       <td style="font-variant-numeric:tabular-nums">${catMoney(po.amount)}</td>
-      <td style="color:var(--text-muted)">${po.date}</td>
+      <td style="color:var(--text-muted)">${escHtml(po.date)}</td>
       <td><span class="chip ${st.chip}">${st.label}</span></td>
       <td>${actionHtml}</td>
     `;
@@ -6518,7 +6610,7 @@ function renderPhotos(jobId) {
   photos.forEach((p, i) => {
     const el = document.createElement('div');
     el.style.cssText = `aspect-ratio:1;border-radius:8px;background:${p.color}22;border:1px solid ${p.color}44;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px;cursor:pointer;position:relative;overflow:hidden`;
-    el.innerHTML = `<div style="font-size:22px">📷</div><div style="font-size:9px;color:var(--text-secondary);text-align:center;margin-top:4px;line-height:1.3">${p.label}</div>`;
+    el.innerHTML = `<div style="font-size:22px">📷</div><div style="font-size:9px;color:var(--text-secondary);text-align:center;margin-top:4px;line-height:1.3">${escHtml(p.label)}</div>`;
     el.title = p.label;
     el.onclick = () => toast(`Viewing: ${p.label}`);
     grid.appendChild(el);
@@ -6544,7 +6636,7 @@ function renderFieldNotes(jobId) {
   notes.forEach(n => {
     const div = document.createElement('div');
     div.style.cssText = 'padding:10px 12px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--accent)';
-    div.innerHTML = `<div style="font-size:13px;color:var(--text-primary);line-height:1.5">${n.text}</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px">${n.tech} · ${n.time}</div>`;
+    div.innerHTML = `<div style="font-size:13px;color:var(--text-primary);line-height:1.5">${escHtml(n.text)}</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px">${escHtml(n.tech)} · ${escHtml(n.time)}</div>`;
     container.appendChild(div);
   });
 }
@@ -6582,14 +6674,14 @@ function renderDailyLogs(jobId) {
   container.innerHTML = logs.map(l => {
     const delayColor = (l.delays && l.delays.toLowerCase() !== 'none') ? 'var(--red)' : 'var(--text-secondary)';
     return `<div style="padding:12px;background:var(--surface2);border-radius:8px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:8px">${l.date}</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px">${escHtml(l.date)}</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px">
-        <div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Crew</div><div style="font-size:12px">${l.crew}</div></div>
-        <div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Hours</div><div style="font-size:12px">${l.hours}</div></div>
-        <div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Weather</div><div style="font-size:12px">${l.weather}</div></div>
+        <div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Crew</div><div style="font-size:12px">${escHtml(l.crew)}</div></div>
+        <div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Hours</div><div style="font-size:12px">${escHtml(l.hours)}</div></div>
+        <div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Weather</div><div style="font-size:12px">${escHtml(l.weather)}</div></div>
       </div>
-      <div style="font-size:13px;color:var(--text-primary);line-height:1.5;margin-bottom:4px">${l.work}</div>
-      <div style="font-size:12px;color:${delayColor}">Delays: ${l.delays || 'None'}</div>
+      <div style="font-size:13px;color:var(--text-primary);line-height:1.5;margin-bottom:4px">${escHtml(l.work)}</div>
+      <div style="font-size:12px;color:${delayColor}">Delays: ${l.delays ? escHtml(l.delays) : 'None'}</div>
     </div>`;
   }).join('');
 }
@@ -6640,12 +6732,12 @@ function renderActivity(jobId) {
     const isLast = i === all.length - 1;
     div.innerHTML = `
       <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">
-        <div style="width:28px;height:28px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px">${entry.icon}</div>
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px">${escHtml(entry.icon)}</div>
         ${!isLast ? '<div style="width:1px;flex:1;min-height:12px;background:var(--border);margin-top:4px"></div>' : ''}
       </div>
       <div style="padding-top:4px;min-width:0">
-        <div style="font-size:13px;color:var(--text-primary)">${entry.text}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${entry.time}</div>
+        <div style="font-size:13px;color:var(--text-primary)">${escHtml(entry.text)}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${escHtml(entry.time)}</div>
       </div>
     `;
     container.appendChild(div);
@@ -6696,7 +6788,7 @@ function computeAIInsights() {
   if (overdue.length) {
     const tot = overdue.reduce((s, i) => s + (i.total - (i.paid || 0)), 0);
     out.push({ icon: '⚠️', color: '#ef4444',
-      text: `<b>${overdue.length} overdue invoice${overdue.length !== 1 ? 's' : ''}</b> totaling <b>${catMoney(tot)}</b> — ${overdue.map(i => i.num + ' (' + i.client + ')').join(', ')}.`,
+      text: `<b>${overdue.length} overdue invoice${overdue.length !== 1 ? 's' : ''}</b> totaling <b>${catMoney(tot)}</b> — ${overdue.map(i => escHtml(i.num) + ' (' + escHtml(i.client) + ')').join(', ')}.`,
       action: 'View Invoices', fn: () => { nav('invoices'); } });
   }
   // (b) Any job over budget
@@ -6712,7 +6804,7 @@ function computeAIInsights() {
   Object.entries(CHANGE_ORDERS).forEach(([job, list]) => (list || []).forEach(c => { if (c.status === 'pending') pendingCOs.push({ job, ...c }); }));
   if (pendingCOs.length) {
     out.push({ icon: '📝', color: '#6366f1',
-      text: `<b>${pendingCOs.length} pending change order${pendingCOs.length !== 1 ? 's' : ''}</b> awaiting approval — first: ${pendingCOs[0].desc} (${catMoney(pendingCOs[0].amount)}).`,
+      text: `<b>${pendingCOs.length} pending change order${pendingCOs.length !== 1 ? 's' : ''}</b> awaiting approval — first: ${escHtml(pendingCOs[0].desc)} (${catMoney(pendingCOs[0].amount)}).`,
       action: 'Open Job', fn: () => { openJobDetail(pendingCOs[0].job); } });
   }
   // (d) Top revenue service
@@ -7001,12 +7093,12 @@ function sendAI(key) {
 
   const userMsg = document.createElement('div');
   userMsg.style.cssText = 'display:flex;gap:10px;align-items:flex-start;flex-direction:row-reverse';
-  userMsg.innerHTML = `<div class="avatar" style="flex-shrink:0;font-size:11px;background:#475569">AL</div><div style="background:var(--accent);color:#fff;border-radius:12px 12px 3px 12px;padding:12px 16px;font-size:13px;max-width:80%">${msg}</div>`;
+  userMsg.innerHTML = `<div class="avatar" style="flex-shrink:0;font-size:11px;background:#475569">AL</div><div style="background:var(--accent);color:#fff;border-radius:12px 12px 3px 12px;padding:12px 16px;font-size:13px;max-width:80%">${escHtml(msg)}</div>`;
   container.appendChild(userMsg);
 
   setTimeout(() => {
     const raw = aiAnswer(msg);
-    const formatted = raw.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
+    const formatted = escHtml(raw).replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
     const aiMsg = document.createElement('div');
     aiMsg.style.cssText = 'display:flex;gap:10px;align-items:flex-start';
     aiMsg.innerHTML = `<div class="avatar" style="background:var(--accent);flex-shrink:0;font-size:11px">AI</div><div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px 12px 12px 3px;padding:12px 16px;font-size:13px;max-width:80%;line-height:1.6">${formatted}</div>`;
@@ -7079,16 +7171,16 @@ function renderJobBudget(jobId) {
   const w = Math.min(pct, 100);
   const linesHtml = (b.lines || []).map(l =>
     `<div style="display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:5px 0;border-bottom:1px solid var(--border)">
-       <span style="color:var(--text-primary)">${l[0]}</span>
-       <span style="color:var(--text-muted);white-space:nowrap">${l[1]} · ${catMoney(l[2])}</span>
+       <span style="color:var(--text-primary)">${escHtml(l[0])}</span>
+       <span style="color:var(--text-muted);white-space:nowrap">${escHtml(l[1])} · ${catMoney(l[2])}</span>
      </div>`).join('');
   const costsHtml = (b.costs && b.costs.length)
     ? b.costs.map(c =>
         `<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 0;border-bottom:1px solid var(--border)">
-           <span style="flex:1;color:var(--text-primary)">${c.desc}</span>
-           <span class="chip chip-blue" style="font-size:10px">${c.cat}</span>
+           <span style="flex:1;color:var(--text-primary)">${escHtml(c.desc)}</span>
+           <span class="chip chip-blue" style="font-size:10px">${escHtml(c.cat)}</span>
            <span style="font-variant-numeric:tabular-nums;white-space:nowrap">${catMoney(c.amount)}</span>
-           <span style="font-size:11px;color:var(--text-muted);white-space:nowrap">${c.date}</span>
+           <span style="font-size:11px;color:var(--text-muted);white-space:nowrap">${escHtml(c.date)}</span>
          </div>`).join('')
     : '<div style="font-size:12px;color:var(--text-muted);padding:6px 0">No costs logged yet</div>';
   el.innerHTML = `
@@ -7167,7 +7259,7 @@ function renderChangeOrders(jobId) {
       : '';
     return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-         <span style="flex:1;font-size:13px;color:var(--text-primary)">${co.desc}</span>
+         <span style="flex:1;font-size:13px;color:var(--text-primary)">${escHtml(co.desc)}</span>
          <span style="font-variant-numeric:tabular-nums;font-weight:600">${catMoney(co.amount)}</span>
          ${coStatusChip(co.status)}
        </div>
@@ -7626,6 +7718,7 @@ function renderReports() {
 function escHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
+function escAttr(s) { return escHtml(s); } // escHtml already encodes ' and " so it is attribute-safe; kept separate for intent
 
 // ── PHASE 7: GLOBAL SEARCH ────────────────────────────────────
 function globalSearch(q, targetId) {
@@ -7825,6 +7918,7 @@ function applySettings() {
 
 // ── STARTUP: seed branch data, replay saved records, scope to active location ──
 function bootApp() {
+  if (window.__savedActor) currentActor = window.__savedActor;
   loadSettings();
   populateSettingsForm();
   applySettings();
@@ -7846,6 +7940,43 @@ function showPbLogin() {
   const o = document.getElementById('pb-login-overlay');
   o.style.display = 'flex';
   document.getElementById('pb-login-url').textContent = pbUrl;
+  loadSsoProviders();
+}
+
+// Discover SSO/OAuth2 providers configured on the server and render sign-in buttons
+async function loadSsoProviders() {
+  try {
+    const res = await fetch(pbUrl + '/api/collections/users/auth-methods');
+    if (!res.ok) return;
+    const data = await res.json();
+    const providers = (data.oauth2 && data.oauth2.enabled && data.oauth2.providers) || data.authProviders || [];
+    const wrap = document.getElementById('pb-sso-wrap');
+    const box = document.getElementById('pb-sso-buttons');
+    if (!providers.length) { wrap.style.display = 'none'; return; }
+    box.innerHTML = '';
+    providers.forEach(p => {
+      const name = p.displayName || p.name || 'SSO';
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-ghost';
+      btn.style.cssText = 'width:100%;justify-content:center;font-size:13px';
+      btn.textContent = '🔐 Continue with ' + name;
+      btn.onclick = () => startSsoLogin(p);
+      box.appendChild(btn);
+    });
+    wrap.style.display = 'block';
+  } catch (e) { /* server not reachable / no SSO */ }
+}
+
+function startSsoLogin(provider) {
+  // Open the provider's authorization URL; on return, the app completes auth-with-oauth2.
+  // Full redirect handling is configured server-side (PocketBase OAuth2 redirect URL).
+  const url = provider.authURL || provider.authorizationURL;
+  if (url) {
+    const redirect = location.href.split('#')[0];
+    window.location.href = url + encodeURIComponent(redirect);
+  } else {
+    toast('SSO provider not fully configured on the server');
+  }
 }
 
 async function submitPbLogin() {

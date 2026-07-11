@@ -765,5 +765,44 @@
   "createRule": "@request.auth.id != \"\"",
   "updateRule": "@request.auth.id != \"\"",
   "deleteRule": "@request.auth.id != \"\""
+ },
+ {
+  "name": "audit_log",
+  "type": "base",
+  "fields": [
+   {
+    "name": "ts",
+    "type": "text",
+    "required": true
+   },
+   {
+    "name": "actor",
+    "type": "text"
+   },
+   {
+    "name": "action",
+    "type": "text"
+   },
+   {
+    "name": "ref",
+    "type": "text"
+   },
+   {
+    "name": "atype",
+    "type": "text"
+   },
+   {
+    "name": "created",
+    "type": "autodate",
+    "onCreate": true,
+    "onUpdate": false
+   }
+  ],
+  "indexes": [],
+  "listRule": "@request.auth.id != \"\"",
+  "viewRule": "@request.auth.id != \"\"",
+  "createRule": "@request.auth.id != \"\"",
+  "updateRule": null,
+  "deleteRule": null
  }
 ]
