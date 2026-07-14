@@ -724,7 +724,7 @@ tr:hover td { background: var(--surface2); }
         <div class="user-role">Empire Remodels</div>
       </div>
     </div>
-    <div style="text-align:center;font-size:10px;color:#475569;padding:6px 0 2px;letter-spacing:.4px">build v4.3</div>
+    <div style="text-align:center;font-size:10px;color:#475569;padding:6px 0 2px;letter-spacing:.4px">build v4.4</div>
   </div>
 </div>
 
@@ -2937,6 +2937,7 @@ const PB_URL_KEY = 'empireApiUrl';
 let pbUrl = (() => { try { return localStorage.getItem(PB_URL_KEY) || ''; } catch (e) { return ''; } })();
 let pbToken = (() => { try { return sessionStorage.getItem('empirePbToken') || ''; } catch (e) { return ''; } })();
 try { const a = sessionStorage.getItem('empireActor'); if (a) window.__savedActor = a; } catch (e) {}
+try { const r = sessionStorage.getItem('empireRole'); if (r) window.__savedRole = r; } catch (e) {}
 const pbActive = () => !!(pbUrl && pbToken);
 
 async function pbLogin(email, password) {
@@ -2948,7 +2949,12 @@ async function pbLogin(email, password) {
   const data = await res.json();
   pbToken = data.token;
   currentActor = (data.record && (data.record.email || data.record.name)) || 'Backend User';
-  try { sessionStorage.setItem('empirePbToken', pbToken); sessionStorage.setItem('empireActor', currentActor); } catch (e) {}
+  currentRole = (data.record && data.record.role) || 'admin';
+  try {
+    sessionStorage.setItem('empirePbToken', pbToken);
+    sessionStorage.setItem('empireActor', currentActor);
+    sessionStorage.setItem('empireRole', currentRole);
+  } catch (e) {}
   return data.record;
 }
 
@@ -2979,6 +2985,55 @@ function pbPushAction(type, payload) {
 const AUDIT_KEY = 'empireAudit';
 let auditLog = (() => { try { return JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]'); } catch (e) { return []; } })();
 let currentActor = 'Local User';  // set to signed-in email in backend mode
+let currentRole = 'admin';        // set from backend user record; offline mode = admin
+
+// ── ROLE-BASED UI GATING (soft control — see SECURITY.md for hard-boundary note) ──
+// Which pages each role may open. admin/manager = full; tech = ops only; client = portal.
+const ROLE_PAGES = {
+  admin:   null, // null = all pages allowed
+  manager: null,
+  tech:    ['dashboard', 'leads', 'clients', 'jobs', 'job-detail', 'schedule', 'workers', 'timesheets', 'inventory', 'compliance', 'ai', 'inbox'],
+  client:  ['dashboard', 'estimate-client'],
+};
+const ROLE_LABEL = { admin: 'Admin', manager: 'Manager', tech: 'Technician', client: 'Client' };
+
+function roleCanSee(pageId) {
+  const allowed = ROLE_PAGES[currentRole];
+  return !allowed || allowed.includes(pageId);
+}
+
+function applyRoleGating() {
+  // Only enforce in backend mode with a non-admin role (offline/admin sees everything)
+  const restrict = pbActive() && ROLE_PAGES[currentRole];
+  // Sidebar items: hide nav entries the role can't use
+  document.querySelectorAll('.nav-item').forEach(item => {
+    const m = (item.getAttribute('onclick') || '').match(/nav\('([\w-]+)'\)/);
+    if (!m) return;
+    item.style.display = (!restrict || roleCanSee(m[1])) ? '' : 'none';
+  });
+  // Role badge in the sidebar
+  let badge = document.getElementById('role-badge');
+  if (!badge) {
+    const sub = document.querySelector('.logo-sub');
+    if (sub) {
+      badge = document.createElement('span');
+      badge.id = 'role-badge';
+      badge.className = 'chip chip-blue';
+      badge.style.cssText = 'font-size:9px;margin-top:3px;display:inline-block';
+      sub.parentElement.appendChild(badge);
+    }
+  }
+  if (badge) {
+    badge.textContent = ROLE_LABEL[currentRole] || 'User';
+    badge.style.display = (pbActive()) ? '' : 'none';
+  }
+  // If the currently active page is now disallowed, bounce to a safe landing
+  const active = document.querySelector('.page.active');
+  if (restrict && active) {
+    const id = active.id.replace('page-', '');
+    if (!roleCanSee(id)) nav(currentRole === 'client' ? 'dashboard' : 'dashboard');
+  }
+}
 
 // Human-readable summaries for each journaled action type
 const AUDIT_LABELS = {
@@ -3069,6 +3124,11 @@ const pages = {
 };
 
 function nav(id) {
+  // Role gate: block navigation to pages this role may not see (backend mode, non-admin)
+  if (pbActive() && ROLE_PAGES[currentRole] && !roleCanSee(id)) {
+    toast('You don\'t have access to that section');
+    return;
+  }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const page = document.getElementById('page-' + id);
@@ -7919,6 +7979,7 @@ function applySettings() {
 // ── STARTUP: seed branch data, replay saved records, scope to active location ──
 function bootApp() {
   if (window.__savedActor) currentActor = window.__savedActor;
+  if (window.__savedRole) currentRole = window.__savedRole;
   loadSettings();
   populateSettingsForm();
   applySettings();
@@ -7934,6 +7995,7 @@ function bootApp() {
   if (badge) badge.style.display = pbActive() ? '' : 'none';
   const urlInput = document.getElementById('set-apiurl');
   if (urlInput) urlInput.value = pbUrl;
+  applyRoleGating();
 }
 
 function showPbLogin() {

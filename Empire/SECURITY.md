@@ -62,18 +62,33 @@ to *you* (the org), not the code:
 | **Vendor management** | PocketBase (self-hosted — no third-party data processor) | Document your subprocessors (host, email, payments) |
 | **Confidentiality (C1)** | Per-collection rules; data stays on your server | Data classification & retention policy |
 
-### The one code-level gap for SOC 2 least-privilege: role-based rules
+### Role-based access — two layers
 
-Currently all authenticated users share full CRUD. Before a Type II audit with
-multiple roles, tighten collection rules, e.g.:
+**Layer 1 — UI role gating (IMPLEMENTED, build v4.4).** The `users` collection has
+a `role` field (`admin` / `manager` / `tech` / `client`). On login the app reads
+the role and hides the sections that role shouldn't use, blocks navigation to them,
+and shows a role badge:
 
-- **Techs** — read/write only jobs where `tech = @request.auth.name`; no financials.
-- **Clients** — read only their own `jobs`/`invoices`; write only change-order approvals.
-- **Admins** — full access.
+- **Admin / Manager** — full access.
+- **Technician** — operations only (jobs, schedule, clients, inventory, timesheets);
+  **no** invoices, estimates, reports, purchase orders, services, locations, or settings.
+- **Client** — dashboard + their portal only.
 
-PocketBase implements this with per-collection API rules referencing
-`@request.auth.role` (add a `role` field to `users`). This is a focused next task,
-not a rewrite.
+This is a real access-control and least-astonishment layer, verified with live
+tech/client/admin accounts. **It is enforced in the browser, not at the database.**
+
+**Layer 2 — Database-enforced isolation (RECOMMENDED NEXT, for a Type II audit).**
+Because the app currently syncs through a single shared `journal` collection, a
+determined user with API access could still read data the UI hides. True
+least-privilege requires migrating from journal-sync to **normalized per-collection
+storage**, then per-collection PocketBase rules referencing `@request.auth.role`
+and record ownership (e.g. techs limited to `tech = @request.auth.name`, clients to
+their own records). This is a multi-phase project, not a config toggle — scope it
+before onboarding external users (clients) who could inspect API traffic.
+
+**Practical guidance:** Layer 1 is sufficient for an internal team you trust
+(techs simply don't see financials). Add Layer 2 before giving **clients** logins,
+since they're outside your trust boundary.
 
 ## 5. SCIM — honest answer
 
