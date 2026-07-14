@@ -37,7 +37,25 @@ TOKEN=$(curl -s -X POST "http://$HOST/api/collections/_superusers/auth-with-pass
 CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "http://$HOST/api/collections/import" \
   -H "Content-Type: application/json" -H "Authorization: $TOKEN" \
   -d "{\"collections\": $(cat pb_schema.json), \"deleteMissing\": false}")
-[ "$CODE" = "204" ] && echo "Schema imported (15 collections)." || { echo "Schema import failed: HTTP $CODE"; exit 1; }
+[ "$CODE" = "204" ] && echo "Schema imported." || { echo "Schema import failed: HTTP $CODE"; exit 1; }
+
+# 3b. Ensure the users collection has a 'role' field (drives RBAC rules)
+python3 - "$HOST" "$TOKEN" << 'PYEOF'
+import json, sys, urllib.request
+host, token = sys.argv[1], sys.argv[2]
+def api(p, d=None, m='GET'):
+    r = urllib.request.Request(f'http://{host}{p}', data=json.dumps(d).encode() if d else None, method=m,
+        headers={'Content-Type': 'application/json', 'Authorization': token})
+    return json.load(urllib.request.urlopen(r))
+u = api('/api/collections/users')
+if not any(f['name'] == 'role' for f in u['fields']):
+    u['fields'].append({'name': 'role', 'type': 'select', 'maxSelect': 1, 'values': ['admin', 'manager', 'tech', 'client']})
+    api('/api/collections/users', {'fields': u['fields']}, 'PATCH')
+    print('users.role field added (admin/manager/tech/client)')
+else:
+    print('users.role already present')
+print('NOTE: set each user role in Admin UI -> users. RBAC rules key off it.')
+PYEOF
 
 # 4. Seed reference data (idempotent-ish: skips if catalog already has rows)
 EXISTING=$(curl -s "http://$HOST/api/collections/catalog_items/records?perPage=1" -H "Authorization: $TOKEN" | python3 -c "import sys,json;print(json.load(sys.stdin)['totalItems'])")

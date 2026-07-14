@@ -1,103 +1,300 @@
 [
  {
+  "name": "users",
+  "type": "auth",
+  "fields": [
+   {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 255,
+    "min": 0,
+    "name": "name",
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
+   },
+   {
+    "help": "",
+    "hidden": false,
+    "maxSelect": 1,
+    "maxSize": 0,
+    "mimeTypes": [
+     "image/jpeg",
+     "image/png",
+     "image/svg+xml",
+     "image/gif",
+     "image/webp"
+    ],
+    "name": "avatar",
+    "presentable": false,
+    "protected": false,
+    "required": false,
+    "system": false,
+    "thumbs": null,
+    "type": "file"
+   },
+   {
+    "hidden": false,
+    "name": "created",
+    "onCreate": true,
+    "onUpdate": false,
+    "presentable": false,
+    "system": false,
+    "type": "autodate"
+   },
+   {
+    "hidden": false,
+    "name": "updated",
+    "onCreate": true,
+    "onUpdate": true,
+    "presentable": false,
+    "system": false,
+    "type": "autodate"
+   },
+   {
+    "help": "",
+    "hidden": false,
+    "maxSelect": 1,
+    "name": "role",
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "select",
+    "values": [
+     "admin",
+     "manager",
+     "tech",
+     "client"
+    ]
+   }
+  ],
+  "indexes": [
+   "CREATE UNIQUE INDEX `idx_tokenKey__pb_users_auth_` ON `users` (`tokenKey`)",
+   "CREATE UNIQUE INDEX `idx_email__pb_users_auth_` ON `users` (`email`) WHERE `email` != ''"
+  ],
+  "listRule": "id = @request.auth.id",
+  "viewRule": "id = @request.auth.id",
+  "createRule": "",
+  "updateRule": "id = @request.auth.id",
+  "deleteRule": "id = @request.auth.id"
+ },
+ {
   "name": "clients",
   "type": "base",
   "fields": [
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "name",
-    "type": "text",
-    "required": true
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": true,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "phone",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "exceptDomains": null,
+    "help": "",
+    "hidden": false,
     "name": "email",
+    "onlyDomains": null,
+    "presentable": false,
+    "required": false,
+    "system": false,
     "type": "email"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "address",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "proptype",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "help": "",
+    "hidden": false,
+    "maxSelect": 1,
     "name": "client_type",
+    "presentable": false,
+    "required": false,
+    "system": false,
     "type": "select",
     "values": [
      "Residential",
      "Commercial",
      "HOA"
-    ],
-    "maxSelect": 1,
-    "required": false
+    ]
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "since",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "location",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "help": "",
+    "hidden": false,
+    "maxSize": 2000000,
     "name": "notes",
-    "type": "json",
-    "maxSize": 2000000
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "json"
    }
   ],
   "indexes": [],
-  "listRule": "@request.auth.id != \"\"",
-  "viewRule": "@request.auth.id != \"\"",
-  "createRule": "@request.auth.id != \"\"",
-  "updateRule": "@request.auth.id != \"\"",
-  "deleteRule": "@request.auth.id != \"\""
+  "listRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || @request.auth.role = \"tech\"",
+  "viewRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || @request.auth.role = \"tech\"",
+  "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\""
  },
  {
   "name": "leads",
   "type": "base",
   "fields": [
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "title",
-    "type": "text",
-    "required": true
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": true,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "channel",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "phone",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "exceptDomains": null,
+    "help": "",
+    "hidden": false,
     "name": "email",
+    "onlyDomains": null,
+    "presentable": false,
+    "required": false,
+    "system": false,
     "type": "email"
    },
    {
+    "help": "",
+    "hidden": false,
+    "maxSelect": 1,
     "name": "priority",
+    "presentable": false,
+    "required": false,
+    "system": false,
     "type": "select",
     "values": [
      "Urgent",
      "Normal",
      "Low",
      "Spam"
-    ],
-    "maxSelect": 1,
-    "required": false
+    ]
    },
    {
+    "help": "",
+    "hidden": false,
+    "maxSelect": 1,
     "name": "status",
+    "presentable": false,
+    "required": false,
+    "system": false,
     "type": "select",
     "values": [
      "New",
@@ -106,66 +303,134 @@
      "Won",
      "Lost",
      "Dismissed"
-    ],
-    "maxSelect": 1,
-    "required": false
+    ]
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 5000,
+    "min": 0,
     "name": "message",
-    "type": "text",
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
     "required": false,
-    "max": 5000
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 2000,
+    "min": 0,
     "name": "scope",
-    "type": "text",
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
     "required": false,
-    "max": 2000
+    "system": false,
+    "type": "text"
    },
    {
+    "help": "",
+    "hidden": false,
+    "maxSize": 2000000,
     "name": "timeline",
-    "type": "json",
-    "maxSize": 2000000
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "json"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "location",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    }
   ],
   "indexes": [],
-  "listRule": "@request.auth.id != \"\"",
-  "viewRule": "@request.auth.id != \"\"",
-  "createRule": "@request.auth.id != \"\"",
-  "updateRule": "@request.auth.id != \"\"",
-  "deleteRule": "@request.auth.id != \"\""
+  "listRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || @request.auth.role = \"tech\"",
+  "viewRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || @request.auth.role = \"tech\"",
+  "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\""
  },
  {
   "name": "estimates",
   "type": "base",
   "fields": [
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "number",
-    "type": "text",
-    "required": true
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": true,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "client",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "description",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "help": "",
+    "hidden": false,
+    "max": null,
+    "min": null,
     "name": "total",
-    "type": "number",
-    "required": false
+    "onlyInt": false,
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "number"
    },
    {
+    "help": "",
+    "hidden": false,
+    "maxSelect": 1,
     "name": "status",
+    "presentable": false,
+    "required": false,
+    "system": false,
     "type": "select",
     "values": [
      "draft",
@@ -173,128 +438,286 @@
      "accepted",
      "declined",
      "converted"
-    ],
-    "maxSelect": 1,
-    "required": false
+    ]
    },
    {
+    "help": "",
+    "hidden": false,
+    "maxSize": 2000000,
     "name": "lines",
-    "type": "json",
-    "maxSize": 2000000
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "json"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "location",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
+   },
+   {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
+    "name": "owner_email",
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    }
   ],
   "indexes": [
    "CREATE UNIQUE INDEX idx_est_number ON estimates (number)"
   ],
-  "listRule": "@request.auth.id != \"\"",
-  "viewRule": "@request.auth.id != \"\"",
-  "createRule": "@request.auth.id != \"\"",
-  "updateRule": "@request.auth.id != \"\"",
-  "deleteRule": "@request.auth.id != \"\""
+  "listRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || (@request.auth.role = \"client\" && owner_email = @request.auth.email)",
+  "viewRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || (@request.auth.role = \"client\" && owner_email = @request.auth.email)",
+  "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\""
  },
  {
   "name": "jobs",
   "type": "base",
   "fields": [
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "number",
-    "type": "text",
-    "required": true
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": true,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "description",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "client",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "tech",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "date",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "help": "",
+    "hidden": false,
+    "max": null,
+    "min": null,
     "name": "value",
-    "type": "number",
-    "required": false
+    "onlyInt": false,
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "number"
    },
    {
+    "help": "",
+    "hidden": false,
+    "maxSelect": 1,
     "name": "status",
+    "presentable": false,
+    "required": false,
+    "system": false,
     "type": "select",
     "values": [
      "scheduled",
      "in_progress",
      "on_hold",
      "completed"
-    ],
-    "maxSelect": 1,
-    "required": false
+    ]
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 5000,
+    "min": 0,
     "name": "notes",
-    "type": "text",
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
     "required": false,
-    "max": 5000
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "address",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "location",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "help": "",
+    "hidden": false,
+    "max": null,
+    "min": null,
     "name": "budget_total",
-    "type": "number",
-    "required": false
+    "onlyInt": false,
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "number"
    },
    {
+    "help": "",
+    "hidden": false,
+    "maxSize": 2000000,
     "name": "budget_lines",
-    "type": "json",
-    "maxSize": 2000000
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "json"
+   },
+   {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
+    "name": "owner_email",
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    }
   ],
   "indexes": [
    "CREATE UNIQUE INDEX idx_job_number ON jobs (number)"
   ],
-  "listRule": "@request.auth.id != \"\"",
-  "viewRule": "@request.auth.id != \"\"",
-  "createRule": "@request.auth.id != \"\"",
-  "updateRule": "@request.auth.id != \"\"",
-  "deleteRule": "@request.auth.id != \"\""
+  "listRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || @request.auth.role = \"tech\" || (@request.auth.role = \"client\" && owner_email = @request.auth.email)",
+  "viewRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || @request.auth.role = \"tech\" || (@request.auth.role = \"client\" && owner_email = @request.auth.email)",
+  "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\""
  },
  {
   "name": "job_costs",
   "type": "base",
   "fields": [
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "job",
-    "type": "text",
-    "required": true
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": true,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "description",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "help": "",
+    "hidden": false,
+    "maxSelect": 1,
     "name": "category",
+    "presentable": false,
+    "required": false,
+    "system": false,
     "type": "select",
     "values": [
      "Labor",
@@ -302,425 +725,879 @@
      "Subcontractor",
      "Permits",
      "Other"
-    ],
-    "maxSelect": 1,
-    "required": false
+    ]
    },
    {
+    "help": "",
+    "hidden": false,
+    "max": null,
+    "min": null,
     "name": "amount",
-    "type": "number",
-    "required": false
+    "onlyInt": false,
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "number"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "date",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    }
   ],
   "indexes": [],
-  "listRule": "@request.auth.id != \"\"",
-  "viewRule": "@request.auth.id != \"\"",
-  "createRule": "@request.auth.id != \"\"",
-  "updateRule": "@request.auth.id != \"\"",
-  "deleteRule": "@request.auth.id != \"\""
+  "listRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "viewRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\""
  },
  {
   "name": "change_orders",
   "type": "base",
   "fields": [
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "job",
-    "type": "text",
-    "required": true
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": true,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "description",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "help": "",
+    "hidden": false,
+    "max": null,
+    "min": null,
     "name": "amount",
-    "type": "number",
-    "required": false
+    "onlyInt": false,
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "number"
    },
    {
+    "help": "",
+    "hidden": false,
+    "maxSelect": 1,
     "name": "status",
+    "presentable": false,
+    "required": false,
+    "system": false,
     "type": "select",
     "values": [
      "pending",
      "approved",
      "declined"
-    ],
-    "maxSelect": 1,
-    "required": false
+    ]
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "date",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
+   },
+   {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
+    "name": "owner_email",
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    }
   ],
   "indexes": [],
-  "listRule": "@request.auth.id != \"\"",
-  "viewRule": "@request.auth.id != \"\"",
-  "createRule": "@request.auth.id != \"\"",
-  "updateRule": "@request.auth.id != \"\"",
-  "deleteRule": "@request.auth.id != \"\""
+  "listRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || (@request.auth.role = \"client\" && owner_email = @request.auth.email)",
+  "viewRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || (@request.auth.role = \"client\" && owner_email = @request.auth.email)",
+  "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\""
  },
  {
   "name": "vendors",
   "type": "base",
   "fields": [
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "name",
-    "type": "text",
-    "required": true
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": true,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "trade",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "contact",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "phone",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "exceptDomains": null,
+    "help": "",
+    "hidden": false,
     "name": "email",
+    "onlyDomains": null,
+    "presentable": false,
+    "required": false,
+    "system": false,
     "type": "email"
    }
   ],
   "indexes": [],
   "listRule": "@request.auth.id != \"\"",
   "viewRule": "@request.auth.id != \"\"",
-  "createRule": "@request.auth.id != \"\"",
-  "updateRule": "@request.auth.id != \"\"",
-  "deleteRule": "@request.auth.id != \"\""
+  "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\""
  },
  {
   "name": "purchase_orders",
   "type": "base",
   "fields": [
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "number",
-    "type": "text",
-    "required": true
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": true,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "job",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "vendor",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "description",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "help": "",
+    "hidden": false,
+    "max": null,
+    "min": null,
     "name": "amount",
-    "type": "number",
-    "required": false
+    "onlyInt": false,
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "number"
    },
    {
+    "help": "",
+    "hidden": false,
+    "maxSelect": 1,
     "name": "status",
+    "presentable": false,
+    "required": false,
+    "system": false,
     "type": "select",
     "values": [
      "draft",
      "sent",
      "received",
      "paid"
-    ],
-    "maxSelect": 1,
-    "required": false
+    ]
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "date",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    }
   ],
   "indexes": [
    "CREATE UNIQUE INDEX idx_po_number ON purchase_orders (number)"
   ],
-  "listRule": "@request.auth.id != \"\"",
-  "viewRule": "@request.auth.id != \"\"",
-  "createRule": "@request.auth.id != \"\"",
-  "updateRule": "@request.auth.id != \"\"",
-  "deleteRule": "@request.auth.id != \"\""
+  "listRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "viewRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\""
  },
  {
   "name": "invoices",
   "type": "base",
   "fields": [
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "number",
-    "type": "text",
-    "required": true
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": true,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "client",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "job",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "help": "",
+    "hidden": false,
+    "max": null,
+    "min": null,
     "name": "total",
-    "type": "number",
-    "required": false
+    "onlyInt": false,
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "number"
    },
    {
+    "help": "",
+    "hidden": false,
+    "max": null,
+    "min": null,
     "name": "paid",
-    "type": "number",
-    "required": false
+    "onlyInt": false,
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "number"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "issued",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "due",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "help": "",
+    "hidden": false,
+    "maxSelect": 1,
     "name": "status",
+    "presentable": false,
+    "required": false,
+    "system": false,
     "type": "select",
     "values": [
      "sent",
      "overdue",
      "paid"
-    ],
-    "maxSelect": 1,
-    "required": false
+    ]
    },
    {
+    "help": "",
+    "hidden": false,
+    "maxSize": 2000000,
     "name": "lines",
-    "type": "json",
-    "maxSize": 2000000
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "json"
+   },
+   {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
+    "name": "owner_email",
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    }
   ],
   "indexes": [
    "CREATE UNIQUE INDEX idx_inv_number ON invoices (number)"
   ],
-  "listRule": "@request.auth.id != \"\"",
-  "viewRule": "@request.auth.id != \"\"",
-  "createRule": "@request.auth.id != \"\"",
-  "updateRule": "@request.auth.id != \"\"",
-  "deleteRule": "@request.auth.id != \"\""
+  "listRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || (@request.auth.role = \"client\" && owner_email = @request.auth.email)",
+  "viewRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || (@request.auth.role = \"client\" && owner_email = @request.auth.email)",
+  "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\""
  },
  {
   "name": "daily_logs",
   "type": "base",
   "fields": [
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "job",
-    "type": "text",
-    "required": true
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": true,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "date",
-    "type": "text",
-    "required": false
-   },
-   {
-    "name": "crew",
-    "type": "text",
-    "required": false
-   },
-   {
-    "name": "hours",
-    "type": "number",
-    "required": false
-   },
-   {
-    "name": "weather",
-    "type": "text",
-    "required": false
-   },
-   {
-    "name": "work",
-    "type": "text",
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
     "required": false,
-    "max": 3000
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
+    "name": "crew",
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
+   },
+   {
+    "help": "",
+    "hidden": false,
+    "max": null,
+    "min": null,
+    "name": "hours",
+    "onlyInt": false,
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "number"
+   },
+   {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
+    "name": "weather",
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
+   },
+   {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 3000,
+    "min": 0,
+    "name": "work",
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
+   },
+   {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "delays",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    }
   ],
   "indexes": [],
-  "listRule": "@request.auth.id != \"\"",
-  "viewRule": "@request.auth.id != \"\"",
-  "createRule": "@request.auth.id != \"\"",
-  "updateRule": "@request.auth.id != \"\"",
-  "deleteRule": "@request.auth.id != \"\""
+  "listRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || @request.auth.role = \"tech\"",
+  "viewRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || @request.auth.role = \"tech\"",
+  "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || @request.auth.role = \"tech\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || @request.auth.role = \"tech\"",
+  "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || @request.auth.role = \"tech\""
  },
  {
   "name": "catalog_items",
   "type": "base",
   "fields": [
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "name",
-    "type": "text",
-    "required": true
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": true,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "category",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "unit",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "help": "",
+    "hidden": false,
+    "max": null,
+    "min": null,
     "name": "cost",
-    "type": "number",
-    "required": false
+    "onlyInt": false,
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "number"
    },
    {
+    "help": "",
+    "hidden": false,
+    "max": null,
+    "min": null,
     "name": "markup",
-    "type": "number",
-    "required": false
+    "onlyInt": false,
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "number"
    }
   ],
   "indexes": [],
   "listRule": "@request.auth.id != \"\"",
   "viewRule": "@request.auth.id != \"\"",
-  "createRule": "@request.auth.id != \"\"",
-  "updateRule": "@request.auth.id != \"\"",
-  "deleteRule": "@request.auth.id != \"\""
+  "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\""
  },
  {
   "name": "estimate_templates",
   "type": "base",
   "fields": [
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "name",
-    "type": "text",
-    "required": true
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": true,
+    "system": false,
+    "type": "text"
    },
    {
+    "help": "",
+    "hidden": false,
+    "maxSize": 2000000,
     "name": "items",
-    "type": "json",
-    "maxSize": 2000000
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "json"
    }
   ],
   "indexes": [],
   "listRule": "@request.auth.id != \"\"",
   "viewRule": "@request.auth.id != \"\"",
-  "createRule": "@request.auth.id != \"\"",
-  "updateRule": "@request.auth.id != \"\"",
-  "deleteRule": "@request.auth.id != \"\""
+  "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\""
  },
  {
   "name": "locations",
   "type": "base",
   "fields": [
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "name",
-    "type": "text",
-    "required": true
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": true,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "address",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "phone",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "exceptDomains": null,
+    "help": "",
+    "hidden": false,
     "name": "email",
+    "onlyDomains": null,
+    "presentable": false,
+    "required": false,
+    "system": false,
     "type": "email"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "manager",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "help": "",
+    "hidden": false,
+    "maxSelect": 1,
     "name": "status",
+    "presentable": false,
+    "required": false,
+    "system": false,
     "type": "select",
     "values": [
      "active",
      "opening"
-    ],
-    "maxSelect": 1,
-    "required": false
+    ]
    }
   ],
   "indexes": [],
   "listRule": "@request.auth.id != \"\"",
   "viewRule": "@request.auth.id != \"\"",
-  "createRule": "@request.auth.id != \"\"",
-  "updateRule": "@request.auth.id != \"\"",
-  "deleteRule": "@request.auth.id != \"\""
+  "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\""
  },
  {
   "name": "workers",
   "type": "base",
   "fields": [
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "name",
-    "type": "text",
-    "required": true
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": true,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "role",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "location",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    }
   ],
   "indexes": [],
   "listRule": "@request.auth.id != \"\"",
   "viewRule": "@request.auth.id != \"\"",
-  "createRule": "@request.auth.id != \"\"",
-  "updateRule": "@request.auth.id != \"\"",
-  "deleteRule": "@request.auth.id != \"\""
+  "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\""
  },
  {
   "name": "job_photos",
   "type": "base",
   "fields": [
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "job",
-    "type": "text",
-    "required": true
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": true,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "label",
-    "type": "text",
-    "required": false
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
+    "type": "text"
    },
    {
-    "name": "photo",
-    "type": "file",
+    "help": "",
+    "hidden": false,
     "maxSelect": 1,
     "maxSize": 10485760,
     "mimeTypes": [
@@ -728,79 +1605,155 @@
      "image/png",
      "image/webp",
      "image/heic"
-    ]
+    ],
+    "name": "photo",
+    "presentable": false,
+    "protected": false,
+    "required": false,
+    "system": false,
+    "thumbs": null,
+    "type": "file"
    }
   ],
   "indexes": [],
-  "listRule": "@request.auth.id != \"\"",
-  "viewRule": "@request.auth.id != \"\"",
-  "createRule": "@request.auth.id != \"\"",
-  "updateRule": "@request.auth.id != \"\"",
-  "deleteRule": "@request.auth.id != \"\""
+  "listRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || @request.auth.role = \"tech\"",
+  "viewRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || @request.auth.role = \"tech\"",
+  "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || @request.auth.role = \"tech\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || @request.auth.role = \"tech\"",
+  "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || @request.auth.role = \"tech\""
  },
  {
   "name": "journal",
   "type": "base",
   "fields": [
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "atype",
-    "type": "text",
-    "required": true
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": true,
+    "system": false,
+    "type": "text"
    },
    {
+    "help": "",
+    "hidden": false,
+    "maxSize": 2000000,
     "name": "payload",
-    "type": "json",
-    "maxSize": 2000000
+    "presentable": false,
+    "required": false,
+    "system": false,
+    "type": "json"
    },
    {
+    "hidden": false,
     "name": "created",
-    "type": "autodate",
     "onCreate": true,
-    "onUpdate": false
+    "onUpdate": false,
+    "presentable": false,
+    "system": false,
+    "type": "autodate"
    }
   ],
   "indexes": [],
-  "listRule": "@request.auth.id != \"\"",
-  "viewRule": "@request.auth.id != \"\"",
-  "createRule": "@request.auth.id != \"\"",
-  "updateRule": "@request.auth.id != \"\"",
-  "deleteRule": "@request.auth.id != \"\""
+  "listRule": "@request.auth.role != \"client\"",
+  "viewRule": "@request.auth.role != \"client\"",
+  "createRule": "@request.auth.role != \"client\"",
+  "updateRule": "@request.auth.role != \"client\"",
+  "deleteRule": "@request.auth.role != \"client\""
  },
  {
   "name": "audit_log",
   "type": "base",
   "fields": [
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "ts",
-    "type": "text",
-    "required": true
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": true,
+    "system": false,
+    "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "actor",
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
     "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "action",
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
     "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "ref",
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
     "type": "text"
    },
    {
+    "autogeneratePattern": "",
+    "help": "",
+    "hidden": false,
+    "max": 0,
+    "min": 0,
     "name": "atype",
+    "pattern": "",
+    "presentable": false,
+    "primaryKey": false,
+    "required": false,
+    "system": false,
     "type": "text"
    },
    {
+    "hidden": false,
     "name": "created",
-    "type": "autodate",
     "onCreate": true,
-    "onUpdate": false
+    "onUpdate": false,
+    "presentable": false,
+    "system": false,
+    "type": "autodate"
    }
   ],
   "indexes": [],
-  "listRule": "@request.auth.id != \"\"",
-  "viewRule": "@request.auth.id != \"\"",
+  "listRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "viewRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
   "createRule": "@request.auth.id != \"\"",
   "updateRule": null,
   "deleteRule": null

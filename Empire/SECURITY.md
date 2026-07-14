@@ -77,18 +77,39 @@ and shows a role badge:
 This is a real access-control and least-astonishment layer, verified with live
 tech/client/admin accounts. **It is enforced in the browser, not at the database.**
 
-**Layer 2 — Database-enforced isolation (RECOMMENDED NEXT, for a Type II audit).**
-Because the app currently syncs through a single shared `journal` collection, a
-determined user with API access could still read data the UI hides. True
-least-privilege requires migrating from journal-sync to **normalized per-collection
-storage**, then per-collection PocketBase rules referencing `@request.auth.role`
-and record ownership (e.g. techs limited to `tech = @request.auth.name`, clients to
-their own records). This is a multi-phase project, not a config toggle — scope it
-before onboarding external users (clients) who could inspect API traffic.
+**Layer 2 — Database-enforced isolation.**
 
-**Practical guidance:** Layer 1 is sufficient for an internal team you trust
-(techs simply don't see financials). Add Layer 2 before giving **clients** logins,
-since they're outside your trust boundary.
+*Backend (DONE — build v4.5).* All collections now carry per-role / per-owner
+PocketBase rules keyed off a `role` field on `users` (`admin`/`manager`/`tech`/
+`client`) and an `owner_email` field on client-facing records. Enforced at the
+database and **proven with live per-role tokens**:
+
+| Test | Result |
+|---|---|
+| Tech reads invoices / purchase orders | **0 records** (financials blocked) |
+| Tech writes reference data (catalog) | **HTTP 400** (blocked; read-only) |
+| Tech reads jobs | OK (operations allowed) |
+| Client reads invoices | **only their own** (`owner_email` match) |
+| Client reads another client's invoice | not returned |
+| Client reads the sync `journal` | **blocked** (staff-only) |
+| Client reads CRM `clients` list | **blocked** |
+| Client creates an invoice | **HTTP 400** (blocked) |
+| Admin / manager | full access |
+
+These rules are exported into `backend/pb_schema.json` and reproduced by
+`setup.sh` on any fresh server (verified on a clean instance).
+
+*App integration (REMAINING — Phase 2).* Staff use the app today via the shared
+`journal` (now staff-only at the DB, so clients cannot read it). To give **clients**
+working logins, the client portal must read their own records directly from the
+typed collections (`jobs`/`invoices`/`estimates`/`change_orders` filtered by
+`owner_email`) instead of the journal, and staff record-creation must stamp
+`owner_email`. Until that ships, **do not issue client-role logins** — staff
+(admin/manager/tech) and offline mode are unaffected and fully functional.
+
+**Practical guidance:** the internal team can go live now (Layer 1 UI gating +
+Layer 2 backend rules protect financials from techs). Complete Phase 2 before
+onboarding external clients.
 
 ## 5. SCIM — honest answer
 
