@@ -99,17 +99,34 @@ database and **proven with live per-role tokens**:
 These rules are exported into `backend/pb_schema.json` and reproduced by
 `setup.sh` on any fresh server (verified on a clean instance).
 
-*App integration (REMAINING — Phase 2).* Staff use the app today via the shared
-`journal` (now staff-only at the DB, so clients cannot read it). To give **clients**
-working logins, the client portal must read their own records directly from the
-typed collections (`jobs`/`invoices`/`estimates`/`change_orders` filtered by
-`owner_email`) instead of the journal, and staff record-creation must stamp
-`owner_email`. Until that ships, **do not issue client-role logins** — staff
-(admin/manager/tech) and offline mode are unaffected and fully functional.
+*App integration (DONE — build v4.6).* A `client`-role login now boots a dedicated
+**client portal** (not the staff app): it fetches only that client's own
+`jobs`/`invoices`/`estimates`/`change_orders` directly from the typed collections
+(the DB filters by `owner_email`), never the journal. Staff record-creation mirrors
+these records to the typed collections stamped with the client's email. Verified
+end-to-end with a live client token through the app UI:
 
-**Practical guidance:** the internal team can go live now (Layer 1 UI gating +
-Layer 2 backend rules protect financials from techs). Complete Phase 2 before
-onboarding external clients.
+| Test (through the app / live token) | Result |
+|---|---|
+| Client portal renders, staff shell hidden | ✓ |
+| Client sees own invoice/estimate/job | ✓ |
+| Client sees another client's records | **never** |
+| Client approves estimate / change order / pays own invoice | ✓ (own only) |
+| Client PATCHes **another** client's invoice | **HTTP 403** |
+| Client creates an invoice | **HTTP 403** |
+| Tech PATCHes any invoice | **HTTP 403** |
+| Staff / offline mode | unchanged, full-access |
+
+**Invoice "Pay Now" caveat (production).** In the demo, a client marks their own
+invoice paid directly (the DB allows a client to update their own record's status).
+**In production, do NOT rely on client-set payment status** — wire "Pay Now" to a
+server-side payment webhook (Stripe) that marks the invoice paid only after funds
+clear, and tighten the invoice `updateRule` so clients cannot self-set `paid`/`total`.
+Estimate and change-order approvals are legitimately client-driven and correct as-is.
+
+**Status:** the internal team AND external clients can now be onboarded with
+database-enforced isolation. Complete the Stripe payment hand-off before taking
+real online payments.
 
 ## 5. SCIM — honest answer
 

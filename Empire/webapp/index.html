@@ -724,7 +724,7 @@ tr:hover td { background: var(--surface2); }
         <div class="user-role">Empire Remodels</div>
       </div>
     </div>
-    <div style="text-align:center;font-size:10px;color:#475569;padding:6px 0 2px;letter-spacing:.4px">build v4.4</div>
+    <div style="text-align:center;font-size:10px;color:#475569;padding:6px 0 2px;letter-spacing:.4px">build v4.6</div>
   </div>
 </div>
 
@@ -2981,6 +2981,27 @@ function pbPushAction(type, payload) {
   }).catch(() => { toast('⚠️ Sync failed — change saved locally only'); });
 }
 
+// ── HARD RBAC PHASE 2: typed-collection mirroring (staff → client portal) ──
+// Resolve a client's portal login email from CLIENT_DATA by matching their name.
+function clientEmailFor(name) {
+  for (const k in CLIENT_DATA) { if (CLIENT_DATA[k].name === name) return CLIENT_DATA[k].email || ''; }
+  return '';
+}
+// Best-effort POST a mirror record into a typed collection. Never blocks or throws.
+function pbMirror(collection, data) {
+  if (!pbActive()) return;
+  fetch(pbUrl + '/api/collections/' + collection + '/records', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: pbToken },
+    body: JSON.stringify(data),
+  }).catch(() => {});
+}
+// Best-effort PATCH: find one record by a unique field, then patch it. Never blocks or throws.
+function pbMirrorUpdate(collection, filterField, filterVal, patch) {
+  if (!pbActive()) return;
+  fetch(pbUrl + '/api/collections/' + collection + '/records?filter=' + encodeURIComponent(filterField + '="' + filterVal + '"') + '&perPage=1', { headers: { Authorization: pbToken } })
+    .then(r => r.json()).then(d => { const rec = d.items && d.items[0]; if (rec) fetch(pbUrl + '/api/collections/' + collection + '/records/' + rec.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: pbToken }, body: JSON.stringify(patch) }); }).catch(() => {});
+}
+
 // ── AUDIT LOG (immutable who/what/when trail) ────────────────
 const AUDIT_KEY = 'empireAudit';
 let auditLog = (() => { try { return JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]'); } catch (e) { return []; } })();
@@ -4123,6 +4144,7 @@ function insertEstimateRow(num, client, desc, totalStr, status, loc) {
   const tbody = document.querySelector('#est-table tbody');
   if (!tbody) return;
   const estLoc = loc || activeLocId;
+  pbMirror('estimates', { number: num, client, description: desc, total: parseMoney(totalStr), status, owner_email: clientEmailFor(client) });
   logAction('estimate', { num, client, desc, totalStr, status, loc: estLoc, lines: EST_LINES[num] });
   const chip = status === 'draft' ? '<span class="chip chip-blue">Draft</span>'
              : status === 'awaiting' ? '<span class="chip chip-yellow">Awaiting</span>'
@@ -4255,6 +4277,7 @@ function sendEstimate(estNum, clientName) {
     }
   });
   refreshEstPipeline();
+  pbMirrorUpdate('estimates', 'number', estNum, { status: 'awaiting' });
   logAction('est-status', { num: estNum, status: 'awaiting' });
   addNotif('📤 Estimate sent', `${estNum} — ${clientName}`);
   toast(`Estimate ${estNum} sent to ${clientName} ✉️`);
@@ -4285,6 +4308,7 @@ function createJob(desc, client, tech, dateStr, valueStr, notes, loc) {
     status: 'scheduled', statusLabel: 'Scheduled', statusClass: 'chip-yellow',
     notes: notes || desc,
   };
+  pbMirror('jobs', { number: num, description: desc, client, tech: tech || '', date: dateStr || '', value: valueStr || '', status: 'scheduled', owner_email: clientEmailFor(client) });
   const tbody = document.querySelector('#jobs-table tbody');
   if (tbody) {
     const tr = document.createElement('tr');
@@ -4317,6 +4341,7 @@ function convertToJob(estNum, clientName) {
   const el = (EST_LINES[estNum] && EST_LINES[estNum].length) ? EST_LINES[estNum].map(l => [l[0], l[1], l[2]]) : [['Contract total', 1, bt]];
   JOB_DATA[jn].budget = { total: bt, lines: el, costs: [] };
   logAction('jobbudget', { jn, total: bt, lines: el });
+  pbMirrorUpdate('estimates', 'number', estNum, { status: 'converted' });
   logAction('est-status', { num: estNum, status: 'converted' });
   toast(`${jn} created for ${clientName} from ${estNum} 🎉`);
   addNotif(`🔨 New job created`, `${jn} — ${clientName} (from ${estNum})`);
@@ -4467,6 +4492,7 @@ function portalPay(num) {
   if (!inv || inv.status === 'paid') return;
   inv.paid = inv.total;
   inv.status = 'paid';
+  pbMirrorUpdate('invoices', 'number', inv.num, { paid: inv.paid, status: inv.status });
   (invTimelines[num] = invTimelines[num] || []).push({ icon:'💳', text:'Payment received — client portal', time: fmtShortDate() });
   logAction('portal-pay', { num });
   renderInvoiceList();
@@ -5944,6 +5970,7 @@ function submitPayment() {
     const timeline = invTimelines[currentInvNum] = invTimelines[currentInvNum] || [];
     timeline.push({ icon:'💳', text:`Payment received — ${method}${ref?' · '+ref:''}`, time:date });
     timeline.push({ icon:'✅', text:'Invoice marked Paid', time:date });
+    pbMirrorUpdate('invoices', 'number', inv.num, { paid: inv.paid, status: inv.status });
     addNotif('💳 Payment received', `${currentInvNum} — ${inv.client} · $${amount.toLocaleString()}`);
     toast(`Payment recorded — ${currentInvNum} is now PAID ✅`);
   } else {
@@ -6071,6 +6098,7 @@ function createInvoiceFromBuilder(send) {
   });
   const email = document.getElementById('invb-email').value.trim();
   const inv = { num, client, job, total, paid: 0, issued: today, due, status: 'sent', lines, contact: email || '—', addr: '—' };
+  pbMirror('invoices', { number: inv.num, client: inv.client, job: inv.job, total: inv.total, paid: inv.paid, issued: inv.issued, due: inv.due, status: inv.status, owner_email: clientEmailFor(inv.client) });
   INVOICES.unshift(inv);
   invTimelines[num] = [
     { icon:'📋', text:`Invoice created${job !== '—' ? ' from ' + job : ''}`, time: today },
@@ -7341,6 +7369,7 @@ function addChangeOrder(jobId) {
     const co = { id: 'co-' + Date.now(), desc, amount, status: 'pending', date: fmtShortDate() };
     if (!CHANGE_ORDERS[jobId]) CHANGE_ORDERS[jobId] = [];
     CHANGE_ORDERS[jobId].push(co);
+    pbMirror('change_orders', { job: jobId, description: desc, amount, status: 'pending', owner_email: clientEmailFor(JOB_DATA[jobId] && JOB_DATA[jobId].client) });
     logAction('changeorder', { jobId, id: co.id, desc, amount, status: 'pending', date: co.date });
     renderChangeOrders(jobId);
     addNotif('📝 Change order added', `${desc} · ${catMoney(amount)}`);
@@ -8048,6 +8077,11 @@ async function submitPbLogin() {
   err.textContent = '';
   try {
     await pbLogin(email, pass);
+    if (currentRole === 'client') {
+      document.getElementById('pb-login-overlay').style.display = 'none';
+      bootClientPortal();
+      return;
+    }
     journal = await pbFetchJournal();
     document.getElementById('pb-login-overlay').style.display = 'none';
     bootApp();
@@ -8073,9 +8107,148 @@ function setBackendUrl() {
   location.reload();
 }
 
+// ── HARD RBAC PHASE 2: CLIENT PORTAL (typed collections, no journal) ──────
+async function cpFetch(coll) {
+  try {
+    const r = await fetch(pbUrl + '/api/collections/' + coll + '/records?perPage=200', { headers: { Authorization: pbToken } });
+    return r.ok ? (await r.json()).items : [];
+  } catch (e) { return []; }
+}
+async function cpPatch(coll, id, patch) {
+  try {
+    await fetch(pbUrl + '/api/collections/' + coll + '/records/' + id, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: pbToken },
+      body: JSON.stringify(patch),
+    });
+  } catch (e) {}
+  renderClientPortal();
+}
+
+function cpStatusChip(status) {
+  const s = String(status || '').toLowerCase();
+  const map = {
+    paid: 'chip-green', accepted: 'chip-green', approved: 'chip-green', converted: 'chip-green',
+    sent: 'chip-blue', awaiting: 'chip-yellow', pending: 'chip-yellow', draft: 'chip-gray',
+    overdue: 'chip-red', declined: 'chip-red',
+  };
+  const cls = map[s] || 'chip-gray';
+  const label = status ? (String(status).charAt(0).toUpperCase() + String(status).slice(1)) : '—';
+  return '<span class="chip ' + cls + '">' + escHtml(label) + '</span>';
+}
+
+function bootClientPortal() {
+  // Hide the staff shell entirely; the portal is a full-screen overlay.
+  const sb = document.querySelector('.sidebar'); if (sb) sb.style.display = 'none';
+  const mn = document.querySelector('.main'); if (mn) mn.style.display = 'none';
+  const loginOverlay = document.getElementById('pb-login-overlay');
+  if (loginOverlay) loginOverlay.style.display = 'none';
+  let view = document.getElementById('client-portal-view');
+  if (!view) {
+    view = document.createElement('div');
+    view.id = 'client-portal-view';
+    view.style.cssText = 'position:fixed;inset:0;overflow:auto;background:var(--canvas);z-index:1500';
+    document.body.appendChild(view);
+  }
+  renderClientPortal();
+}
+
+async function renderClientPortal() {
+  const view = document.getElementById('client-portal-view');
+  if (!view) return;
+  const company = (SETTINGS && SETTINGS.company) || 'Empire Remodels Inc';
+  const [jobs, estimates, invoices, cos] = await Promise.all([
+    cpFetch('jobs'), cpFetch('estimates'), cpFetch('invoices'), cpFetch('change_orders'),
+  ]);
+
+  const projectRows = jobs.length ? jobs.map(j =>
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">' +
+      '<div><div style="font-weight:600">' + escHtml(j.number) + '</div>' +
+      '<div style="color:var(--text-secondary);font-size:13px">' + escHtml(j.description) + '</div></div>' +
+      cpStatusChip(j.status) +
+    '</div>').join('')
+    : '<div style="color:var(--text-secondary);padding:8px 0">You have no active projects yet.</div>';
+
+  const estRows = estimates.length ? estimates.map(e => {
+    const actions = String(e.status).toLowerCase() === 'awaiting'
+      ? '<div style="display:flex;gap:8px;margin-top:8px">' +
+          '<button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="cpEstimate(\'' + escAttr(e.id) + '\',\'accepted\')">Approve</button>' +
+          '<button class="btn btn-ghost" style="font-size:12px;padding:6px 12px" onclick="cpEstimate(\'' + escAttr(e.id) + '\',\'declined\')">Decline</button>' +
+        '</div>'
+      : '';
+    return '<div style="padding:12px 0;border-bottom:1px solid var(--border)">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">' +
+        '<div><div style="font-weight:600">' + escHtml(e.number) + '</div>' +
+        '<div style="color:var(--text-secondary);font-size:13px">' + escHtml(e.description) + '</div></div>' +
+        '<div style="text-align:right"><div style="font-weight:600;font-variant-numeric:tabular-nums">' + escHtml(catMoney(e.total)) + '</div>' + cpStatusChip(e.status) + '</div>' +
+      '</div>' + actions +
+    '</div>';
+  }).join('') : '<div style="color:var(--text-secondary);padding:8px 0">No estimates to review.</div>';
+
+  const invRows = invoices.length ? invoices.map(i => {
+    const bal = (Number(i.total) || 0) - (Number(i.paid) || 0);
+    const payBtn = String(i.status).toLowerCase() !== 'paid'
+      ? '<button class="btn btn-primary" style="font-size:12px;padding:6px 12px;margin-top:8px" onclick="cpPayInvoice(\'' + escAttr(i.id) + '\',' + (Number(i.total) || 0) + ')">Pay Now</button>'
+      : '';
+    return '<div style="padding:12px 0;border-bottom:1px solid var(--border)">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">' +
+        '<div><div style="font-weight:600">' + escHtml(i.number) + '</div>' +
+        '<div style="color:var(--text-secondary);font-size:13px">Total ' + escHtml(catMoney(i.total)) + ' · Paid ' + escHtml(catMoney(i.paid)) + ' · Balance ' + escHtml(catMoney(bal)) + '</div></div>' +
+        cpStatusChip(i.status) +
+      '</div>' + payBtn +
+    '</div>';
+  }).join('') : '<div style="color:var(--text-secondary);padding:8px 0">You have no invoices.</div>';
+
+  const coRows = cos.length ? cos.map(c => {
+    const actions = String(c.status).toLowerCase() === 'pending'
+      ? '<div style="display:flex;gap:8px;margin-top:8px">' +
+          '<button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="cpChangeOrder(\'' + escAttr(c.id) + '\',\'approved\')">Approve</button>' +
+          '<button class="btn btn-ghost" style="font-size:12px;padding:6px 12px" onclick="cpChangeOrder(\'' + escAttr(c.id) + '\',\'declined\')">Decline</button>' +
+        '</div>'
+      : '';
+    return '<div style="padding:12px 0;border-bottom:1px solid var(--border)">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">' +
+        '<div><div style="font-weight:600">' + escHtml(c.job) + '</div>' +
+        '<div style="color:var(--text-secondary);font-size:13px">' + escHtml(c.description) + '</div></div>' +
+        '<div style="text-align:right"><div style="font-weight:600;font-variant-numeric:tabular-nums">' + escHtml(catMoney(c.amount)) + '</div>' + cpStatusChip(c.status) + '</div>' +
+      '</div>' + actions +
+    '</div>';
+  }).join('') : '<div style="color:var(--text-secondary);padding:8px 0">No change orders.</div>';
+
+  const card = (title, body) =>
+    '<div class="card" style="margin-bottom:16px">' +
+      '<div class="card-header"><div class="card-title">' + escHtml(title) + '</div></div>' +
+      '<div style="padding:4px 16px 12px">' + body + '</div>' +
+    '</div>';
+
+  view.innerHTML =
+    '<div style="max-width:760px;margin:0 auto;padding:24px 16px 48px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:24px">' +
+        '<div>' +
+          '<div style="font-size:22px;font-weight:700">' + escHtml(company) + '</div>' +
+          '<div style="color:var(--text-secondary);font-size:13px;margin-top:2px">Signed in as ' + escHtml(currentActor) + '</div>' +
+        '</div>' +
+        '<button class="btn btn-ghost" onclick="cpSignOut()">Sign Out</button>' +
+      '</div>' +
+      card('Your Projects', projectRows) +
+      card('Your Estimates', estRows) +
+      card('Your Invoices', invRows) +
+      card('Change Orders', coRows) +
+    '</div>';
+}
+
+function cpSignOut() { try { sessionStorage.clear(); } catch (e) {} location.reload(); }
+function cpEstimate(id, status) { cpPatch('estimates', id, { status }); toast(status === 'accepted' ? 'Estimate approved ✓' : 'Estimate declined'); }
+function cpChangeOrder(id, status) { cpPatch('change_orders', id, { status }); toast(status === 'approved' ? 'Change order approved ✓' : 'Change order declined'); }
+function cpPayInvoice(id, total) { cpPatch('invoices', id, { paid: total, status: 'paid' }); toast('Payment received — thank you!'); }
+
 (async () => {
   if (pbUrl) {
     if (!pbToken) { showPbLogin(); return; }
+    if (window.__savedRole) currentRole = window.__savedRole;
+    if (currentRole === 'client') {
+      if (window.__savedActor) currentActor = window.__savedActor;
+      bootClientPortal(); return;
+    }
     try {
       journal = await pbFetchJournal();
     } catch (e) {

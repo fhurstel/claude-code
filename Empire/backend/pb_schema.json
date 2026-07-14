@@ -485,7 +485,7 @@
   "listRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || (@request.auth.role = \"client\" && owner_email = @request.auth.email)",
   "viewRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || (@request.auth.role = \"client\" && owner_email = @request.auth.email)",
   "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
-  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || (@request.auth.role = \"client\" && owner_email = @request.auth.email)",
   "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\""
  },
  {
@@ -853,7 +853,7 @@
   "listRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || (@request.auth.role = \"client\" && owner_email = @request.auth.email)",
   "viewRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || (@request.auth.role = \"client\" && owner_email = @request.auth.email)",
   "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
-  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || (@request.auth.role = \"client\" && owner_email = @request.auth.email)",
   "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\""
  },
  {
@@ -1191,7 +1191,7 @@
   "listRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || (@request.auth.role = \"client\" && owner_email = @request.auth.email)",
   "viewRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || (@request.auth.role = \"client\" && owner_email = @request.auth.email)",
   "createRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
-  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\"",
+  "updateRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\" || (@request.auth.role = \"client\" && owner_email = @request.auth.email)",
   "deleteRule": "@request.auth.role = \"admin\" || @request.auth.role = \"manager\""
  },
  {
