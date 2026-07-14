@@ -1,0 +1,377 @@
+{
+ "catalog_items": [
+  {
+   "category": "Labor",
+   "cost": 85,
+   "markup": 30,
+   "name": "General labor",
+   "unit": "hr"
+  },
+  {
+   "category": "Labor",
+   "cost": 110,
+   "markup": 30,
+   "name": "Lead carpenter",
+   "unit": "hr"
+  },
+  {
+   "category": "Labor",
+   "cost": 65,
+   "markup": 30,
+   "name": "Demolition",
+   "unit": "hr"
+  },
+  {
+   "category": "Labor",
+   "cost": 95,
+   "markup": 25,
+   "name": "Project management",
+   "unit": "hr"
+  },
+  {
+   "category": "Labor",
+   "cost": 120,
+   "markup": 30,
+   "name": "Licensed electrician",
+   "unit": "hr"
+  },
+  {
+   "category": "Labor",
+   "cost": 115,
+   "markup": 30,
+   "name": "Licensed plumber",
+   "unit": "hr"
+  },
+  {
+   "category": "Kitchen",
+   "cost": 4800,
+   "markup": 30,
+   "name": "Shaker cabinet set",
+   "unit": "set"
+  },
+  {
+   "category": "Kitchen",
+   "cost": 68,
+   "markup": 35,
+   "name": "Quartz countertop",
+   "unit": "sqft"
+  },
+  {
+   "category": "Kitchen",
+   "cost": 22,
+   "markup": 35,
+   "name": "Backsplash tile installed",
+   "unit": "sqft"
+  },
+  {
+   "category": "Kitchen",
+   "cost": 520,
+   "markup": 30,
+   "name": "Kitchen sink & faucet",
+   "unit": "ea"
+  },
+  {
+   "category": "Kitchen",
+   "cost": 18,
+   "markup": 40,
+   "name": "Cabinet hardware",
+   "unit": "ea"
+  },
+  {
+   "category": "Bathroom",
+   "cost": 850,
+   "markup": 30,
+   "name": "Vanity 36\"",
+   "unit": "ea"
+  },
+  {
+   "category": "Bathroom",
+   "cost": 240,
+   "markup": 35,
+   "name": "Toilet install",
+   "unit": "ea"
+  },
+  {
+   "category": "Bathroom",
+   "cost": 950,
+   "markup": 30,
+   "name": "Shower glass door",
+   "unit": "ea"
+  },
+  {
+   "category": "Bathroom",
+   "cost": 1350,
+   "markup": 30,
+   "name": "Tub / shower surround",
+   "unit": "ea"
+  },
+  {
+   "category": "Bathroom",
+   "cost": 180,
+   "markup": 35,
+   "name": "Bathroom exhaust fan",
+   "unit": "ea"
+  },
+  {
+   "category": "Flooring",
+   "cost": 4.2,
+   "markup": 40,
+   "name": "LVP flooring",
+   "unit": "sqft"
+  },
+  {
+   "category": "Flooring",
+   "cost": 14,
+   "markup": 35,
+   "name": "Porcelain tile installed",
+   "unit": "sqft"
+  },
+  {
+   "category": "Flooring",
+   "cost": 5.5,
+   "markup": 35,
+   "name": "Hardwood refinish",
+   "unit": "sqft"
+  },
+  {
+   "category": "Flooring",
+   "cost": 3.8,
+   "markup": 40,
+   "name": "Carpet installed",
+   "unit": "sqft"
+  },
+  {
+   "category": "Drywall & Paint",
+   "cost": 3.1,
+   "markup": 40,
+   "name": "Interior paint",
+   "unit": "sqft"
+  },
+  {
+   "category": "Drywall & Paint",
+   "cost": 2.8,
+   "markup": 40,
+   "name": "Drywall hung + finished",
+   "unit": "sqft"
+  },
+  {
+   "category": "Drywall & Paint",
+   "cost": 2.2,
+   "markup": 40,
+   "name": "Popcorn ceiling removal",
+   "unit": "sqft"
+  },
+  {
+   "category": "Exterior",
+   "cost": 3.6,
+   "markup": 40,
+   "name": "Exterior paint",
+   "unit": "sqft"
+  },
+  {
+   "category": "Exterior",
+   "cost": 22,
+   "markup": 35,
+   "name": "Composite decking",
+   "unit": "sqft"
+  },
+  {
+   "category": "Exterior",
+   "cost": 38,
+   "markup": 35,
+   "name": "Cedar fence",
+   "unit": "lnft"
+  },
+  {
+   "category": "Exterior",
+   "cost": 9.5,
+   "markup": 35,
+   "name": "Gutter replacement",
+   "unit": "lnft"
+  }
+ ],
+ "vendors": [
+  {
+   "contact": "Dana Reyes",
+   "email": "orders@floorco.com",
+   "name": "FloorCo Supply",
+   "phone": "(916) 555-0142",
+   "trade": "Flooring"
+  },
+  {
+   "contact": "Luis Marconi",
+   "email": "sales@capitaltile.com",
+   "name": "Capital Tile & Stone",
+   "phone": "(916) 555-0188",
+   "trade": "Tile"
+  },
+  {
+   "contact": "Karen Webb",
+   "email": "desk@probuild.com",
+   "name": "ProBuild Lumber",
+   "phone": "(916) 555-0110",
+   "trade": "Lumber & Framing"
+  },
+  {
+   "contact": "Omar Tran",
+   "email": "valley@paintsupply.com",
+   "name": "Valley Paint Supply",
+   "phone": "(916) 555-0177",
+   "trade": "Paint"
+  },
+  {
+   "contact": "Rachel Diaz",
+   "email": "summit@plumbsupply.com",
+   "name": "Summit Plumbing Supply",
+   "phone": "(916) 555-0199",
+   "trade": "Fixtures"
+  },
+  {
+   "contact": "Paul Nguyen",
+   "email": "orders@a1cabinet.com",
+   "name": "A1 Cabinet Wholesale",
+   "phone": "(916) 555-0155",
+   "trade": "Cabinets"
+  }
+ ],
+ "estimate_templates": [
+  {
+   "items": [
+    [
+     "cc-003",
+     16
+    ],
+    [
+     "cc-018",
+     90
+    ],
+    [
+     "cc-012",
+     1
+    ],
+    [
+     "cc-013",
+     1
+    ],
+    [
+     "cc-014",
+     1
+    ],
+    [
+     "cc-001",
+     40
+    ]
+   ],
+   "name": "Bathroom Remodel"
+  },
+  {
+   "items": [
+    [
+     "cc-003",
+     20
+    ],
+    [
+     "cc-007",
+     1
+    ],
+    [
+     "cc-008",
+     45
+    ],
+    [
+     "cc-009",
+     30
+    ],
+    [
+     "cc-010",
+     1
+    ],
+    [
+     "cc-002",
+     48
+    ],
+    [
+     "cc-001",
+     40
+    ]
+   ],
+   "name": "Kitchen Remodel"
+  },
+  {
+   "items": [
+    [
+     "cc-003",
+     12
+    ],
+    [
+     "cc-017",
+     500
+    ],
+    [
+     "cc-002",
+     8
+    ],
+    [
+     "cc-001",
+     24
+    ]
+   ],
+   "name": "Flooring \u2014 500 sqft"
+  },
+  {
+   "items": [
+    [
+     "cc-025",
+     320
+    ],
+    [
+     "cc-002",
+     40
+    ],
+    [
+     "cc-001",
+     32
+    ],
+    [
+     "cc-004",
+     8
+    ]
+   ],
+   "name": "Deck Build"
+  }
+ ],
+ "locations": [
+  {
+   "address": "2100 J Street, Sacramento CA 95816",
+   "email": "",
+   "manager": "Frank H.",
+   "name": "Sacramento HQ",
+   "phone": "(916) 555-0100",
+   "status": "active"
+  },
+  {
+   "address": "9245 Laguna Springs Dr, Elk Grove CA 95758",
+   "email": "",
+   "manager": "Maria G.",
+   "name": "Elk Grove",
+   "phone": "(916) 555-0200",
+   "status": "active"
+  },
+  {
+   "address": "1044 Sunrise Ave, Roseville CA 95661",
+   "email": "",
+   "manager": "Kevin T.",
+   "name": "Roseville",
+   "phone": "(916) 555-0300",
+   "status": "active"
+  },
+  {
+   "address": "500 Commerce St, Riverside CA 92507",
+   "email": "",
+   "manager": "Sandra W.",
+   "name": "Riverside",
+   "phone": "(951) 555-0400",
+   "status": "opening"
+  }
+ ]
+}
