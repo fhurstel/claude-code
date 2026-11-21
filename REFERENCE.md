@@ -1,17 +1,28 @@
-# Reference copy: not this team's work
+# Provenance and permission
 
-This branch is an unmodified copy of **Pantry / occasions-agent** by Shivay Lamba
-(https://github.com/shivaylamba/occasions-agent), commit `13dcfad`, taken 2026-11-21 for reference.
+This branch is built on **Pantry / occasions-agent** by Shivay Lamba
+(https://github.com/shivaylamba/occasions-agent), commit `13dcfad`. It was copied from the
+`reference/occasions-agent` branch of bertramsargla/pah (commit `cb9ca8b`) on 2026-11-21.
 
-- The original repository has **no license**, so its author keeps all rights. Don't merge this branch
-  into `main` or submit any of it as our own work without the author's permission.
-- The commits below this note are the author's. Only this file was added.
-- **Database:** the app's system of record is a remote SingleStore cluster (`SINGLESTORE_URL`), with a
-  SQLite fallback that `app/db.py` creates at runtime and `app/seed.py` fills with demo data. No
-  database file is part of the repository.
-- **To run it** you need the keys listed in its README (`.env` section): Nebius, Senso, Cognee,
-  Firedrill, SingleStore, Superlinked SIE, Statsig, Amplitude, Persona, Tokens& and Guild.
+- The upstream repository has **no license**, so its author keeps all rights. This copy and the
+  changes below are made **with the author's permission**, as the owner of this repository confirmed.
+  Before you publish, submit or relicense any of it, check that the permission covers that use.
+- The first commit on this branch is the author's code, unmodified. Every later commit is ours.
+- **Database:** a remote SingleStore cluster when `SINGLESTORE_URL` is set, else a SQLite file that
+  `app/db.py` creates at runtime under `data/` and `app/seed.py` fills with demo data. The repository
+  contains no database file.
 
-Ideas from it that the main branch re-implements in its own code: approve-then-pay with plan versions
-(any change voids approval, the agent can never approve), idempotent order placement, and shopper
-preferences that change the plan.
+## What this branch adds
+
+- **Senso over REST.** `app/senso.py` can now talk to the Senso REST API (`SENSO_API_URL`, e.g.
+  `https://apiv2.senso.ai/api/v1`) as well as Senso's MCP server. It uses `POST /org/kb/raw` to load
+  documents and `POST /org/search/context` to search. A duplicate upload (409) counts as already
+  loaded. When `SENSO_API_URL` is set, REST takes priority. `senso_check_text`, kept upstream only
+  for reference, still uses MCP.
+- **Local stand-ins for Firedrill Stripe, Gmail and Slack.** With no Firedrill URLs set, the group
+  run's payment calls follow test-mode Stripe semantics locally: manual capture, the
+  `pm_card_chargeDeclined` decline, cancel, refund. Receipts and Slack posts are no-ops. Every audit
+  entry is labelled `local stub ... (Firedrill not configured)`. Before this, the "authorize and
+  place order" step always failed without Firedrill.
+- **Tests:** 28, up from 23. `tests/test_senso_rest.py` covers the REST transport offline, and a
+  full approve, pay and refund flow runs on the local stub.

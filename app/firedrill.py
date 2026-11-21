@@ -4,6 +4,7 @@ All calls go to the per-app MCP URLs in .env. Every call's tool name and outcome
 agent can put it in the audit trail (never the URL).
 """
 import time
+import uuid
 
 from . import mcpcall
 from .config import env
@@ -17,9 +18,32 @@ def live(app):
     return bool(env(APPS[app]))
 
 
+def _local(app, tool, args):
+    """Local stand-in when the Firedrill app isn't configured: test-mode Stripe semantics, no-op Gmail/Slack.
+    Nothing leaves this machine; every result is labelled "local stub"."""
+    rid = f"local_{uuid.uuid4().hex[:10]}"
+    if app == "stripe":
+        if tool == "payment_intents.create":
+            if args.get("payment_method") == "pm_card_chargeDeclined":
+                return False, {"error": {"code": "card_declined", "message": "Your card was declined (local test card)."}}
+            return True, {"id": "pi_" + rid, "status": "requires_capture" if args.get("capture_method") == "manual" else "succeeded"}
+        if tool == "payment_intents.capture":
+            return True, {"id": args.get("payment_intent"), "status": "succeeded"}
+        if tool == "payment_intents.cancel":
+            return True, {"id": args.get("payment_intent"), "status": "canceled"}
+        if tool == "refunds.create":
+            return True, {"id": "re_" + rid, "status": "succeeded"}
+    if app == "gmail":
+        return True, {"id": rid, "emailAddress": "member@local.test"}
+    if app == "slack":
+        return True, {"ok": True, "ts": rid, "channels": [{"id": "local-family", "name": "family"}]}
+    return False, {"error": "not configured"}
+
+
 def call(app, tool, args, timeout=60):
     if not live(app):
-        return {"ok": False, "data": {"error": "not configured"}, "tool": f"{app}.{tool}"}
+        ok, data = _local(app, tool, args)
+        return {"ok": ok, "data": data, "tool": f"local stub {app}: {tool} (Firedrill not configured)"}
     r = mcpcall.call(env(APPS[app]), tool, args, timeout=timeout)
     r["tool"] = f"firedrill {app}: {tool}"
     return r

@@ -5,10 +5,14 @@ Live mode (SENSO_API_KEY): the verified product facts are loaded into Senso as d
 senso_search (context mode) and judges every claim against the facts in that retrieved text; the
 trail cites the Senso document and its search score. (senso_check_text only verifies claims about
 the organization itself, so for third-party sellers it answers "not_verifiable".)
+Transport: the Senso REST API when SENSO_API_URL is set (POST /org/kb/raw, POST /org/search/context),
+else the Senso MCP server (SENSO_API_KEY + SENSO_MCP_URL).
 Without Senso, the same judgement runs on the local copy of the facts, labelled as a demo fixture.
 """
 import re
 import time
+
+import httpx
 
 from . import mcpcall
 from .config import env
@@ -20,8 +24,68 @@ def _h():
     return {"Authorization": f"Bearer {env('SENSO_API_KEY')}"}
 
 
-def live():
+def rest_url():
+    """Senso REST API base (e.g. https://apiv2.senso.ai/api/v1). Preferred over MCP when set."""
+    return env("SENSO_API_URL").rstrip("/")
+
+
+def mcp_live():
     return bool(env("SENSO_API_KEY") and env("SENSO_MCP_URL"))
+
+
+def live():
+    return bool(rest_url()) or mcp_live()
+
+
+def transport():
+    return "rest" if rest_url() else ("mcp" if mcp_live() else "fixture")
+
+
+def _rest(method, path, body=None, timeout=45):
+    """One REST call. The key goes in X-API-Key; it may be absent when a proxy injects it."""
+    h = {"Content-Type": "application/json", "X-Senso-Signals": "off"}  # no "gap" filing for empty searches
+    if env("SENSO_API_KEY"):
+        h["X-API-Key"] = env("SENSO_API_KEY")
+    r = None
+    for wait in (0, 3, 8):
+        time.sleep(wait)
+        try:
+            r = httpx.request(method, rest_url() + path, json=body, headers=h, timeout=timeout)
+        except Exception as e:
+            r = e
+            continue
+        if r.status_code != 429:
+            break
+    if isinstance(r, Exception) or r is None:
+        return {"ok": False, "status": 0, "data": {"error": type(r).__name__}}
+    try:
+        data = r.json()
+    except Exception:
+        data = {"text": r.text[:300]}
+    return {"ok": r.status_code < 300, "status": r.status_code, "data": data}
+
+
+def create_doc(title, text, summary=""):
+    """Add one raw-text document to the knowledge base. A duplicate (409) counts as already loaded."""
+    if rest_url():
+        r = _rest("POST", "/org/kb/raw", {"title": title, "text": text})
+        return {"ok": r["ok"] or r["status"] == 409, "id": (r["data"] or {}).get("id"), "status": r["status"]}
+    r = mcpcall.call(env("SENSO_MCP_URL"), "senso_create_doc", {"title": title, "text": text, "summary": summary}, _h())
+    return {"ok": r["ok"], "id": (r["data"] or {}).get("id"), "status": 200 if r["ok"] else 0}
+
+
+def search(query, max_results=3):
+    """Context-only search. Returns {"ok", "results": [{"title", "text", "score", "content_id"}], "error"}."""
+    if rest_url():
+        r = _rest("POST", "/org/search/context", {"query": query, "max_results": max_results})
+        hits = (r["data"] or {}).get("results") or [] if r["ok"] else []
+        return {"ok": r["ok"], "error": None if r["ok"] else f"senso search {r['status']}",
+                "results": [{"title": h.get("title"), "text": h.get("chunk_text") or "", "score": h.get("score"),
+                             "content_id": h.get("content_id")} for h in hits]}
+    r = mcpcall.call(env("SENSO_MCP_URL"), "senso_search",
+                     {"query": query, "mode": "context", "max_results": max_results}, _h(), timeout=45)
+    return {"ok": r["ok"], "error": None if r["ok"] else str(r["data"])[:160],
+            "results": (r["data"] or {}).get("results") or [] if r["ok"] else []}
 
 
 def parse_facts(text):
@@ -62,14 +126,12 @@ def senso_evidence(listing):
     r = None
     for wait in (0, 3, 8):
         time.sleep(wait)
-        r = mcpcall.call(env("SENSO_MCP_URL"), "senso_search",
-                         {"query": f"Verified facts: {listing['title']} (listing {listing['id']}) sold by {listing['seller']}",
-                          "mode": "context", "max_results": 3}, _h(), timeout=45)
+        r = search(f"Verified facts: {listing['title']} (listing {listing['id']}) sold by {listing['seller']}")
         if r["ok"]:
             break
     if not r or not r["ok"]:
-        return {"error": str(r["data"] if r else "")[:160]}
-    hits = r["data"].get("results") or []
+        return {"error": (r or {}).get("error") or ""}
+    hits = r["results"]
     hit = next((h for h in hits if f"(listing {listing['id']})" in (h.get("text") or "")), None)
     ev = {"found": bool(hit), "title": (hit or {}).get("title"), "score": round((hit or {}).get("score") or 0, 3),
           "content_id": (hit or {}).get("content_id"), "text": (hit or {}).get("text", "")}
@@ -143,8 +205,7 @@ def sync_kb():
     n = 0
     for lid in VERIFIED_FACTS:
         title, text = fact_doc(lid)
-        r = mcpcall.call(env("SENSO_MCP_URL"), "senso_create_doc", {"title": f"Verified facts: {title}", "text": text,
-                                                                     "summary": f"Verified product facts for listing {lid}"}, _h())
+        r = create_doc(f"Verified facts: {title}", text, f"Verified product facts for listing {lid}")
         n += 1 if r["ok"] else 0
     db.put("claims", "senso_kb_synced", {"docs": n, "at": time.strftime("%H:%M")}, grp="system")
     return n

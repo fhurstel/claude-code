@@ -54,7 +54,7 @@ def integrations():
     return {
         "Nebius Token Factory": "live" if env("NEBIUS_API_KEY") else "fixture",
         "Firedrill (Calendar, Gmail, Slack, Stripe)": "live" if fd else "fixture",
-        "Senso": "live" if env("SENSO_API_KEY") else "fixture",
+        "Senso": "live" if (env("SENSO_API_URL") or (env("SENSO_API_KEY") and env("SENSO_MCP_URL"))) else "fixture",
         "Cognee": "live" if env("COGNEE_API_KEY") else "fixture",
         "Superlinked SIE": "live" if env("SIE_API_KEY") else "fixture",
         "Statsig": "live" if env("STATSIG_SERVER_SECRET") else "fixture",

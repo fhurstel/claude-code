@@ -5,7 +5,7 @@ from decimal import Decimal
 
 os.environ["DB_PATH"] = os.path.join(tempfile.mkdtemp(), "g.db")
 os.environ["OCCASIONS_NO_DOTENV"] = "1"
-for k in ("NEBIUS_API_KEY", "COGNEE_API_KEY", "SINGLESTORE_URL", "AMPLITUDE_API_KEY", "STATSIG_SERVER_SECRET"):
+for k in ("NEBIUS_API_KEY", "COGNEE_API_KEY", "SINGLESTORE_URL", "AMPLITUDE_API_KEY", "STATSIG_SERVER_SECRET", "SENSO_API_KEY", "SENSO_API_URL"):
     os.environ.pop(k, None)
 
 import pytest  # noqa: E402
@@ -126,3 +126,18 @@ def test_outsider_cannot_read_or_approve():
         grocery.snapshot("mallory")
     with pytest.raises(PermissionError):
         grocery.approve("mallory", p["id"], "999")
+
+
+def test_local_stub_runs_full_flow_without_firedrill(monkeypatch):
+    monkeypatch.undo()  # real firedrill module, no Firedrill URLs configured -> local stub
+    for k in firedrill.APPS.values():
+        monkeypatch.delenv(k, raising=False)
+    grocery.set_payment_mode("shivay", "individual_shares")
+    p = grocery.plan("shivay")
+    for a in p["allocations"]:
+        grocery.approve(a["member"], p["id"], a["amount"])
+    act = grocery.execute("shivay")
+    assert act["state"] == "order_placed_synthetic"
+    assert all(pay["state"] == "captured" for pay in act["payments"])
+    assert all(r["ok"] for r in act["receipts"])
+    assert all(pay["state"] == "refunded" for pay in grocery.refund("shivay")["payments"])

@@ -268,14 +268,13 @@ def _senso_doc(o):
 
 def sync_grocery_kb():
     """Load verified grocery product attributes into Senso once."""
-    from . import mcpcall, senso
+    from . import senso
     if not senso.live() or db.get("claims", "senso_grocery_kb"):
         return 0
     n = 0
     for o in OFFERS:
         title, text = _senso_doc(o)
-        r = mcpcall.call(env("SENSO_MCP_URL"), "senso_create_doc", {"title": title, "text": text,
-                                                                     "summary": f"Verified attributes for SKU {o[1]}"}, senso._h())
+        r = senso.create_doc(title, text, f"Verified attributes for SKU {o[1]}")
         n += 1 if r["ok"] else 0
         time.sleep(1.2)  # stay under Senso's rate limit
     db.put("claims", "senso_grocery_kb", {"docs": n, "at": _now()}, grp="system")
@@ -284,17 +283,16 @@ def sync_grocery_kb():
 
 def senso_attributes(sku, name):
     """Retrieve a product's verified attributes from Senso (cached). Returns (attrs or None, evidence)."""
-    from . import mcpcall, senso
+    from . import senso
     if not senso.live():
         return None, None
     c = db.get("claims", f"senso_g:{sku}")
     if c:
         return c["attrs"], c["evidence"]
-    r = mcpcall.call(env("SENSO_MCP_URL"), "senso_search", {"query": f"Grocery product facts: {name} (SKU {sku}) verified attributes",
-                                                            "mode": "context", "max_results": 3}, senso._h(), timeout=45)
+    r = senso.search(f"Grocery product facts: {name} (SKU {sku}) verified attributes")
     if not r["ok"]:
         return None, None
-    hit = next((h for h in r["data"].get("results") or [] if f"(SKU {sku})" in (h.get("text") or "")), None)
+    hit = next((h for h in r["results"] if f"(SKU {sku})" in (h.get("text") or "")), None)
     if not hit:
         return None, None
     m = re.search(r"Verified attributes: (.+?)\.", hit["text"])

@@ -1,5 +1,7 @@
 # Pantry: a group grocery agent with receipts
 
+> Built on [shivaylamba/occasions-agent](https://github.com/shivaylamba/occasions-agent) by Shivay Lamba, used with permission. [REFERENCE.md](REFERENCE.md) covers provenance and what this branch changes.
+
 Pantry is a personal shopping agent for households, roommates and friends who shop together.
 Everyone adds what they need, whenever they think of it, in plain words, from the web app or from
 their own AI agent. Pantry remembers each person's preferences, compares complete baskets across the
@@ -87,13 +89,27 @@ Family-occasions tools are also exposed: `upcoming_occasions`, `recall`, `rememb
 ```
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ./run.sh                      # web :8700, MCP :8701 (reads .env, chmod 600)
-.venv/bin/python -m pytest -q tests     # 23 tests: allocation reconciliation, approvals, idempotency,
+.venv/bin/python -m pytest -q tests     # 28 tests: allocation reconciliation, approvals, idempotency,
                                         # declined card, privacy, group isolation, agent safety rules
 bash scripts/e2e_group.sh     # live end-to-end group run against the running server
 ```
 
+### Minimal setup: Senso only
+
+Every integration is optional. To run with Senso as the only live service, set the following in `.env`:
+
+```
+SENSO_API_URL=https://apiv2.senso.ai/api/v1
+SENSO_API_KEY=<org API key, sent as X-API-Key>
+```
+
+On first start the server loads the verified product facts into the Senso knowledge base
+(13 grocery and 17 occasions documents, once). Allow about a minute for Senso to index them before
+you build a plan. Everything else runs locally: SQLite, rule-based extraction, and local stand-ins
+for Stripe, Gmail and Slack.
+
 ### `.env` (names only)
-`NEBIUS_API_KEY SENSO_API_KEY SENSO_ORG_ID SENSO_MCP_URL COGNEE_API_KEY COGNEE_BASE_URL
+`NEBIUS_API_KEY SENSO_API_KEY SENSO_API_URL SENSO_ORG_ID SENSO_MCP_URL COGNEE_API_KEY COGNEE_BASE_URL
 FIREDRILL_{GMAIL,GOOGLE_CALENDAR,SLACK,STRIPE}_MCP_URL SINGLESTORE_URL SIE_API_KEY SIE_ENDPOINT
 STATSIG_SERVER_SECRET AMPLITUDE_API_KEY PERSONA_API_KEY PERSONA_TEMPLATE_ID PERSONA_LIVE
 TOKENS_OBSERVE_API_KEY TOKENS_OBSERVE_INGEST_URL GUILD_API_KEY MEMBER_TOKENS PUBLIC_BASE_URL`
