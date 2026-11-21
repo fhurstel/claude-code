@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+mcp<2
+openai
+httpx
+pymysql
+pytest
